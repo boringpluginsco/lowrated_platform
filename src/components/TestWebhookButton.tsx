@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 interface TestWebhookButtonProps {
   compact?: boolean;
 }
@@ -28,7 +30,7 @@ export default function TestWebhookButton({ compact = false }: TestWebhookButton
         attachments: []
       };
 
-      const response = await fetch('http://localhost:3001/api/email/inbound', {
+      const response = await fetch(`${API_BASE_URL}/email/inbound`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
