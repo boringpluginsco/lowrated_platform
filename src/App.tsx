@@ -7,6 +7,7 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import GooglePage from "./pages/GooglePage";
 import DashboardPage from "./pages/DashboardPage";
+import EmailInboxPage from "./pages/EmailInboxPage";
 import Layout from "./Layout";
 // import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
@@ -212,6 +213,23 @@ export default function App() {
               <PlaceholderPage 
                 title="Unlock powerful analytics insights"
                 subtitle="Track your business performance, conversion rates, and campaign effectiveness with advanced reporting tools."
+              />
+            </Layout>
+          )
+        }
+      />
+      <Route
+        path="/email-inbox"
+        element={
+          isAuthenticated ? (
+            <Layout>
+              <EmailInboxPage />
+            </Layout>
+          ) : (
+            <Layout>
+              <PlaceholderPage 
+                title="View your email inbox"
+                subtitle="Monitor all incoming emails, track business responses, and manage your email communication workflow."
               />
             </Layout>
           )

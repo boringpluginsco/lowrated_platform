@@ -17,6 +17,7 @@ import {
   loadEmailThreads,
 } from "../utils/persistence";
 // import { syncEmailThreads } from "../utils/emailSync";
+import EmailViewer from "../components/EmailViewer";
 
 type BusinessStage = "New" | "Contacted" | "Engaged" | "Qualified" | "Converted";
 
@@ -78,6 +79,7 @@ export default function MessagingPage({
     }[]
   >(() => loadEmailThreads());
   const [isSyncingEmails, setIsSyncingEmails] = useState(false);
+  const [showEmailViewer, setShowEmailViewer] = useState(false);
   const [isComposing, setIsComposing] = useState(true);
   const [draggedBusinessId, setDraggedBusinessId] = useState<string | null>(
     null
@@ -1234,6 +1236,27 @@ Jordan`,
                               className={isSyncingEmails ? "animate-spin" : ""}
                             >
                               <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setShowEmailViewer(true)}
+                            className={`p-2 rounded-md transition-colors ${
+                              isDarkMode
+                                ? "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
+                                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                            }`}
+                            title="View inbound emails"
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                           </button>
                           <button
@@ -2396,5 +2419,122 @@ Jordan"
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {businesses.length ? (
+        <div
+          className={`h-[calc(100vh-4rem)] shadow-inner font-mono ${
+            isDarkMode ? "bg-background" : "bg-white"
+          }`}
+        >
+          {/* Page Header */}
+          <div
+            className={`px-6 py-6 border-b ${
+              isDarkMode ? "border-gray-600" : "border-gray-300"
+            }`}
+          >
+            <h1
+              className={`text-2xl font-bold mb-2 ${
+                isDarkMode ? "text-text-primary" : "text-gray-900"
+              }`}
+            >
+              Communication Center
+            </h1>
+            <p
+              className={`text-sm ${
+                isDarkMode ? "text-text-secondary" : "text-gray-600"
+              }`}
+            >
+              Chat with your starred businesses or send emails
+            </p>
+          </div>
+
+          {/* Tabs Navigation */}
+          <div
+            className={`px-6 py-4 border-b transition-all ${
+              isDarkMode
+                ? `bg-[#0D1125] border-gray-600 ${
+                    draggedBusinessId ? "bg-[#0F1530] shadow-lg" : ""
+                  }`
+                : `bg-gray-50 border-gray-300 ${
+                    draggedBusinessId ? "bg-gray-100 shadow-lg" : ""
+                  }`
+            }`}
+          >
+            <div className="flex space-x-1">
+              {draggedBusinessId && (
+                <div className="absolute -top-2 left-6 right-6 text-xs text-blue-400 font-medium animate-pulse">
+                  Drop on a tab to move business to that stage
+                </div>
+              )}
+              {(
+                ["New", "Contacted", "Engaged", "Qualified", "Converted"] as BusinessStage[]
+              ).map((stage) => {
+                const count = businesses.filter(
+                  (business) => businessStages[business.id] === stage
+                ).length;
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => setActiveTab(stage)}
+                    onDragOver={(e) => handleDragOver(e, stage)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, stage)}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                      activeTab === stage
+                        ? isDarkMode
+                          ? "bg-blue-600 text-white shadow-lg"
+                          : "bg-blue-500 text-white shadow-lg"
+                        : isDarkMode
+                        ? "text-text-secondary hover:text-text-primary hover:bg-gray-700"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                    } ${
+                      dragOverTab === stage
+                        ? isDarkMode
+                          ? "bg-blue-500 text-white"
+                          : "bg-blue-400 text-white"
+                        : ""
+                    }`}
+                  >
+                    {stage} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex">
+            {/* Business List */}
+            <div className="w-1/3 border-r border-gray-200 overflow-y-auto">
+              {/* Business list content would go here */}
+            </div>
+
+            {/* Communication Area */}
+            <div className="flex-1 flex flex-col">
+              {/* Communication content would go here */}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div
+            className={`max-w-4xl mx-auto p-16 text-center ${
+              isDarkMode ? "text-gray-600" : "text-gray-500"
+            }`}
+          >
+            Star a business in the Directory first.
+          </div>
+        </div>
+      )}
+      
+      {/* Email Viewer Modal */}
+      <EmailViewer 
+        isOpen={showEmailViewer} 
+        onClose={() => setShowEmailViewer(false)} 
+      />
+    </>
   );
 }

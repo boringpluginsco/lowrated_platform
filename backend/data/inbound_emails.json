@@ -1,0 +1,38 @@
+[
+  {
+    "id": "received_1753954435205_s0t8rvjb3",
+    "from": "test@example.com",
+    "to": "jordan@galleongroup.co",
+    "subject": "Test Email - 31/07/2025, 21:33:55",
+    "body": "<p>This is a test email sent at 31/07/2025, 21:33:55</p>",
+    "text": "This is a test email sent at 31/07/2025, 21:33:55",
+    "html": "<p>This is a test email sent at 31/07/2025, 21:33:55</p>",
+    "timestamp": "2025-07-31T09:33:55.205Z",
+    "direction": "received",
+    "headers": {
+      "message-id": "test-1753954435178@example.com",
+      "references": "test-reference@example.com"
+    },
+    "attachments": [],
+    "businessId": "This",
+    "receivedAt": "2025-07-31T09:33:55.206Z"
+  },
+  {
+    "id": "received_1753954439750_r53n4db6c",
+    "from": "test@example.com",
+    "to": "jordan@galleongroup.co",
+    "subject": "Test Email - 31/07/2025, 21:33:59",
+    "body": "<p>This is a test email sent at 31/07/2025, 21:33:59</p>",
+    "text": "This is a test email sent at 31/07/2025, 21:33:59",
+    "html": "<p>This is a test email sent at 31/07/2025, 21:33:59</p>",
+    "timestamp": "2025-07-31T09:33:59.750Z",
+    "direction": "received",
+    "headers": {
+      "message-id": "test-1753954439744@example.com",
+      "references": "test-reference@example.com"
+    },
+    "attachments": [],
+    "businessId": "This",
+    "receivedAt": "2025-07-31T09:33:59.751Z"
+  }
+]

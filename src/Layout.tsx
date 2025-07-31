@@ -147,6 +147,7 @@ export default function Layout({ children }: PropsWithChildren) {
               <NavLink to="/" label="Trust Pilot" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 9l1.5 9a2 2 0 002 2h11a2 2 0 002-2L21 9"/><path d="M5 9V7a7 7 0 0114 0v2"/><path d="M9 13h6"/></svg>} />
               <NavLink to="/google" label="Google" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>} />
               <NavLink to="/messages" label="Messages" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M4 19h16M4 5h16M4 12h16"/><circle cx="19" cy="19" r="2"/></svg>} />
+              <NavLink to="/email-inbox" label="Email Inbox" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>} />
             </nav>
           </div>
           {/* Bottom section: Analytics, Login and Menu */}
