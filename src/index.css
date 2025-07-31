@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  background: #0D1125;
+  color: #FFFFFF;
+  min-height: 100vh;
+}
+
+.input {
+  @apply w-full border border-border rounded px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent bg-[#181B26] text-text-primary placeholder-text-secondary;
+}
+
+/* Outgoing (sent) messages */
+.cs-message--outgoing .cs-message__content {
+  background: #007aff !important;
+  color: #fff !important;
+  border-radius: 9999px !important;
+  position: relative;
+  margin-bottom: 4px !important;
+}
+
+/* Incoming (received) messages */
+.cs-message--incoming .cs-message__content {
+  background: #e5e5ea !important;
+  color: #000 !important;
+  border-radius: 9999px !important;
+  position: relative;
+  margin-bottom: 4px !important;
+}
+
+/* Remove previous .cs-message__content::after tails */
+.cs-message--outgoing .cs-message__content::after,
+.cs-message--incoming .cs-message__content::after {
+  display: none !important;
+}

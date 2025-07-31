@@ -1,0 +1,23 @@
+[
+    {
+      "id": "b1",
+      "name": "Acme PR Solutions",
+      "rating": 4.6,
+      "reviews": 87,
+      "types": ["PR Agency"],
+      "city": "Dubai",
+      "country": "UAE",
+      "isStarred": false
+    },
+    {
+      "id": "b2",
+      "name": "BrandGuard Media",
+      "rating": 4.3,
+      "reviews": 55,
+      "types": ["Reputation Management"],
+      "city": "Abu Dhabi",
+      "country": "UAE",
+      "isStarred": false
+    }
+  ]
+  
