@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { Business } from "../types";
 import { useTheme } from "../context/ThemeContext";
 import {
-  saveBusinessStages,
+  // saveBusinessStages,
   loadBusinessStages,
 } from "../utils/persistence";
 
@@ -17,7 +17,7 @@ export default function DashboardPage({ businesses }: Props) {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<BusinessStage>("New");
-  const [businessStages, setBusinessStages] = useState<
+  const [businessStages] = useState<
     Record<string, BusinessStage>
   >(() => {
     // Load persisted stages or initialize as 'New'

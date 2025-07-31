@@ -1,5 +1,5 @@
-# Backend Node.js service
-FROM node:18-alpine
+# Multi-stage build for Node.js backend
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -12,6 +12,23 @@ RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Production stage
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production
+
+# Copy built application from builder stage
+COPY --from=builder /app/server.js ./
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/scripts ./scripts
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs

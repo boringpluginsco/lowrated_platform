@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import DirectoryPage from "./pages/DirectoryPage";
 import MessagingPage from "./pages/MessagingPage";
@@ -8,7 +8,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import GooglePage from "./pages/GooglePage";
 import DashboardPage from "./pages/DashboardPage";
 import Layout from "./Layout";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+// import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import type { Business, Message } from "./types";
 import businessesData from "./data/businesses.json";

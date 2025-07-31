@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { loadEmailThreads } from "../utils/persistence";
 

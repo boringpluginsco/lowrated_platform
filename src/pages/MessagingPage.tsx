@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Conversation,
-  ConversationList,
+  // Conversation,
+  // ConversationList,
   Message as CSMessage,
   MessageList,
-  MessageInput,
+  // MessageInput,
 } from "@chatscope/chat-ui-kit-react";
 import type { Business, Message } from "../types";
 import { useTheme } from "../context/ThemeContext";
@@ -873,7 +873,7 @@ Jordan`,
                               );
                             }
 
-                            return allTouchpoints.map((touchpoint, index) => (
+                            return allTouchpoints.map((touchpoint) => (
                               <div key={touchpoint.id} className="relative flex items-start gap-4 group">
                                 {/* Timeline Dot */}
                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold z-10 shadow-lg transition-all duration-200 group-hover:scale-110 ${
