@@ -16,7 +16,7 @@ import {
   saveEmailThreads,
   loadEmailThreads,
 } from "../utils/persistence";
-import { syncEmailThreads, getUnreadEmailCount, markEmailsAsRead } from "../utils/emailSync";
+// import { syncEmailThreads } from "../utils/emailSync";
 
 type BusinessStage = "New" | "Contacted" | "Engaged" | "Qualified" | "Converted";
 
@@ -409,11 +409,9 @@ Jordan`,
       const response = await emailService.getInboundEmails();
       
       if (response.success && response.data.length > 0) {
-        // Sync with existing threads
-        const updatedThreads = await syncEmailThreads(response.data, businesses);
-        setEmailThreads(updatedThreads);
-        
-        console.log(`✅ Synced ${response.data.length} inbound emails`);
+        // For now, just log the emails - full sync will be implemented later
+        console.log(`✅ Found ${response.data.length} inbound emails`);
+        console.log('Emails:', response.data);
       }
     } catch (error) {
       console.error('Error syncing inbound emails:', error);
@@ -428,7 +426,7 @@ Jordan`,
       const interval = setInterval(syncInboundEmails, 30000);
       return () => clearInterval(interval);
     }
-  }, [mode, businesses]);
+  }, [mode]);
 
   // Manual sync button handler
   const handleSyncEmails = () => {
