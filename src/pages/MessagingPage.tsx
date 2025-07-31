@@ -16,6 +16,7 @@ import {
   saveEmailThreads,
   loadEmailThreads,
 } from "../utils/persistence";
+import { syncEmailThreads, getUnreadEmailCount, markEmailsAsRead } from "../utils/emailSync";
 
 type BusinessStage = "New" | "Contacted" | "Engaged" | "Qualified" | "Converted";
 
@@ -76,6 +77,7 @@ export default function MessagingPage({
       }[];
     }[]
   >(() => loadEmailThreads());
+  const [isSyncingEmails, setIsSyncingEmails] = useState(false);
   const [isComposing, setIsComposing] = useState(true);
   const [draggedBusinessId, setDraggedBusinessId] = useState<string | null>(
     null
@@ -395,6 +397,42 @@ Jordan`,
         handleDomainLookup(business);
       }
     }
+  };
+
+  // Sync inbound emails with existing threads
+  const syncInboundEmails = async () => {
+    if (isSyncingEmails) return;
+    
+    setIsSyncingEmails(true);
+    try {
+      // Fetch inbound emails from the backend
+      const response = await emailService.getInboundEmails();
+      
+      if (response.success && response.data.length > 0) {
+        // Sync with existing threads
+        const updatedThreads = await syncEmailThreads(response.data, businesses);
+        setEmailThreads(updatedThreads);
+        
+        console.log(`✅ Synced ${response.data.length} inbound emails`);
+      }
+    } catch (error) {
+      console.error('Error syncing inbound emails:', error);
+    } finally {
+      setIsSyncingEmails(false);
+    }
+  };
+
+  // Auto-sync emails every 30 seconds when in email mode
+  useEffect(() => {
+    if (mode === 'email') {
+      const interval = setInterval(syncInboundEmails, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [mode, businesses]);
+
+  // Manual sync button handler
+  const handleSyncEmails = () => {
+    syncInboundEmails();
   };
 
   // Drag and drop handlers
@@ -1178,6 +1216,28 @@ Jordan`,
                           </h3>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleSyncEmails}
+                            disabled={isSyncingEmails}
+                            className={`p-2 rounded-md transition-colors ${
+                              isDarkMode
+                                ? "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
+                                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                            } ${isSyncingEmails ? "opacity-50 cursor-not-allowed" : ""}`}
+                            title="Sync inbound emails"
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                              className={isSyncingEmails ? "animate-spin" : ""}
+                            >
+                              <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
+                            </svg>
+                          </button>
                           <button
                             onClick={closeComposeForm}
                             className={`p-1 ${

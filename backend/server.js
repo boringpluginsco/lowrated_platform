@@ -11,7 +11,12 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'], // Vite dev server and other common ports
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:5174', 
+    'http://localhost:3000',
+    'https://lowrated-platform.vercel.app'  // Add your Vercel domain
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -216,25 +221,159 @@ app.post('/api/test-email', async (req, res) => {
 // Webhook endpoint for inbound emails (ImprovMX)
 app.post('/api/email/inbound', async (req, res) => {
   try {
-    const { from, to, subject, html, text } = req.body;
+    const { from, to, subject, html, text, headers, attachments } = req.body;
     
-    console.log('Received inbound email:', {
+    console.log('📨 Received inbound email:', {
       from,
       to,
       subject,
       timestamp: new Date().toISOString()
     });
 
-    // Here you would typically store the email in your database
-    // For now, we'll just log it and return success
-    // TODO: Implement database storage for email threads
+    // Parse email data
+    const emailData = {
+      id: `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      from: from || 'unknown@example.com',
+      to: to || 'jordan@galleongroup.co',
+      subject: subject || 'No Subject',
+      body: html || text || '',
+      text: text || '',
+      html: html || '',
+      timestamp: new Date(),
+      direction: 'received',
+      headers: headers || {},
+      attachments: attachments || []
+    };
+
+    // Extract business ID from email subject or body
+    // Look for patterns like "Re: [Business Name]" or similar
+    const businessId = extractBusinessIdFromEmail(emailData);
+    
+    // Store the email in a simple file-based system for now
+    // In production, you'd want to use a proper database
+    await storeInboundEmail(emailData, businessId);
+    
+    console.log('✅ Inbound email processed and stored');
     
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Error processing inbound email:', error);
+    console.error('❌ Error processing inbound email:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to process inbound email',
+      details: error.message
+    });
+  }
+});
+
+// Helper function to extract business ID from email
+function extractBusinessIdFromEmail(emailData) {
+  // Try to extract business ID from subject line
+  const subject = emailData.subject.toLowerCase();
+  const body = emailData.body.toLowerCase();
+  
+  // Look for common reply patterns
+  if (subject.includes('re:') || subject.includes('reply:')) {
+    // Extract business name from subject
+    const businessNameMatch = emailData.subject.match(/re:\s*(.+?)(?:\s*-\s*|$)/i);
+    if (businessNameMatch) {
+      const businessName = businessNameMatch[1].trim();
+      // You could implement a lookup here to find the business ID
+      return businessName; // For now, return the business name
+    }
+  }
+  
+  // Look for business name in email body
+  const businessNameInBody = extractBusinessNameFromBody(emailData.body);
+  if (businessNameInBody) {
+    return businessNameInBody;
+  }
+  
+  return null;
+}
+
+// Helper function to extract business name from email body
+function extractBusinessNameFromBody(body) {
+  // Simple regex to find business names (capitalized words)
+  const businessNameMatch = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/);
+  return businessNameMatch ? businessNameMatch[0] : null;
+}
+
+// Store inbound email in a JSON file
+async function storeInboundEmail(emailData, businessId) {
+  const fs = require('fs').promises;
+  const path = require('path');
+  
+  try {
+    const emailsFile = path.join(__dirname, 'data', 'inbound_emails.json');
+    
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(emailsFile), { recursive: true });
+    
+    // Read existing emails
+    let emails = [];
+    try {
+      const existingData = await fs.readFile(emailsFile, 'utf8');
+      emails = JSON.parse(existingData);
+    } catch (error) {
+      // File doesn't exist or is empty, start with empty array
+      emails = [];
+    }
+    
+    // Add new email
+    emails.push({
+      ...emailData,
+      businessId,
+      receivedAt: new Date().toISOString()
+    });
+    
+    // Write back to file
+    await fs.writeFile(emailsFile, JSON.stringify(emails, null, 2));
+    
+    console.log(`📝 Email stored for business: ${businessId || 'unknown'}`);
+  } catch (error) {
+    console.error('Error storing inbound email:', error);
+    throw error;
+  }
+}
+
+// Get inbound emails endpoint
+app.get('/api/email/inbound', async (req, res) => {
+  try {
+    const { businessId, limit = 50 } = req.query;
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const emailsFile = path.join(__dirname, 'data', 'inbound_emails.json');
+    
+    let emails = [];
+    try {
+      const existingData = await fs.readFile(emailsFile, 'utf8');
+      emails = JSON.parse(existingData);
+    } catch (error) {
+      // File doesn't exist, return empty array
+      emails = [];
+    }
+    
+    // Filter by business ID if provided
+    if (businessId) {
+      emails = emails.filter(email => email.businessId === businessId);
+    }
+    
+    // Sort by timestamp (newest first) and limit results
+    emails.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+    emails = emails.slice(0, parseInt(limit));
+    
+    res.json({
+      success: true,
+      data: emails,
+      count: emails.length
+    });
+  } catch (error) {
+    console.error('Error retrieving inbound emails:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve inbound emails',
       details: error.message
     });
   }
