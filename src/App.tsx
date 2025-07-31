@@ -9,6 +9,7 @@ import GooglePage from "./pages/GooglePage";
 import DashboardPage from "./pages/DashboardPage";
 import EmailInboxPage from "./pages/EmailInboxPage";
 import Layout from "./Layout";
+import MobileBlock from "./components/MobileBlock";
 // import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import type { Business, Message } from "./types";
@@ -154,7 +155,8 @@ export default function App() {
   };
 
   return (
-    <Routes>
+    <MobileBlock>
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/"
@@ -278,5 +280,6 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </MobileBlock>
   );
 }
