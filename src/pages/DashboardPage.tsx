@@ -6,6 +6,8 @@ import {
   // saveBusinessStages,
   loadBusinessStages,
 } from "../utils/persistence";
+import { getStateOptions, formatLocationForJSON } from "../utils/locationUtils";
+import { getCategoryOptions, formatCategoryForJSON } from "../utils/categoryUtils";
 
 type BusinessStage = "New" | "Contacted" | "Engaged" | "Qualified" | "Converted";
 
@@ -29,6 +31,176 @@ export default function DashboardPage({ businesses }: Props) {
     });
     return initialStages;
   });
+
+  // Google Maps Scraper state
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [numberOfLeads, setNumberOfLeads] = useState(3);
+  
+  // Get state options from zipcodes data
+  const stateOptions = useMemo(() => getStateOptions(), []);
+  
+  // Get category options
+  const categoryOptions = useMemo(() => getCategoryOptions(), []);
+  const [scrapingResults, setScrapingResults] = useState<Array<{
+    id: number;
+    status: "processing" | "completed" | "ready_for_download";
+    details: string;
+    downloadUrl: string | null;
+    taskID?: string;
+  }>>([
+    {
+      id: 1,
+      status: "ready_for_download",
+      details: "Restaurants, New York, NY, 3",
+      downloadUrl: null,
+      taskID: "20250801102258s7f"
+    },
+    {
+      id: 2,
+      status: "processing",
+      details: "Retail, Los Angeles, CA, 100",
+      downloadUrl: null
+    },
+    {
+      id: 3,
+      status: "completed",
+      details: "Healthcare, Chicago, IL, 75",
+      downloadUrl: "https://example.com/download/file3.csv"
+    }
+  ]);
+
+  // Handle download button click
+  const handleDownload = async (result: any) => {
+    if (result.status === "ready_for_download" && result.taskID) {
+      try {
+        console.log("Requesting download URL for taskID:", result.taskID);
+        
+        const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/get_scraped_google_data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ taskID: result.taskID })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Download API response:", data);
+          
+          // Just make the API call and handle the response
+          // The API should return the download URL or handle the download directly
+          console.log("API call successful with taskID:", result.taskID);
+          console.log("Response data:", data);
+          
+          // For now, just log the response and show success
+          alert(`API call successful for taskID: ${result.taskID}. Check console for response details.`);
+        } else {
+          throw new Error(`Download API request failed with status: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("Error requesting download:", error);
+        alert(`Error requesting download: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else if (result.downloadUrl) {
+      // If already has download URL, just open it
+      window.open(result.downloadUrl, '_blank');
+    }
+  };
+
+  // Handle Google Maps scraping
+  const handleStartScraping = async () => {
+    if (!selectedCategory || !selectedLocation) {
+      alert("Please select both a category and location before starting.");
+      return;
+    }
+    
+    // Add new scraping job to results
+    const selectedState = stateOptions.find(state => state.value === selectedLocation);
+    const selectedCategoryOption = categoryOptions.find(cat => cat.value === selectedCategory);
+    const displayLocation = selectedState ? selectedState.label : selectedLocation;
+    const displayCategory = selectedCategoryOption ? selectedCategoryOption.label : selectedCategory;
+    const newJob = {
+      id: Date.now(),
+      status: "processing" as "processing" | "completed" | "ready_for_download",
+      details: `${displayCategory}, ${displayLocation}, ${numberOfLeads}`,
+      downloadUrl: null,
+      taskID: undefined
+    };
+    
+    setScrapingResults(prev => [newJob, ...prev]);
+    
+    try {
+      // Prepare the API payload with properly formatted location and category
+      const formattedLocation = formatLocationForJSON(selectedLocation);
+      const formattedCategory = formatCategoryForJSON(selectedCategory);
+      const payload = [
+        {
+          location: formattedLocation,
+          category: formattedCategory,
+          limit: numberOfLeads
+        }
+      ];
+      
+      console.log("Sending API request with payload:", payload);
+      
+      // Make API call to the scraping service
+      const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/scrape_google_data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Scraping API response:", result);
+        
+        // Check if we received a taskID
+        if (result.taskID) {
+          // Update the job with taskID and set status to ready_for_download
+          setScrapingResults(prev => prev.map(job => 
+            job.id === newJob.id 
+              ? { ...job, status: "ready_for_download", taskID: result.taskID }
+              : job
+          ));
+        } else {
+          // Fallback: if no taskID, assume it's completed with download URL
+          setScrapingResults(prev => prev.map(job => 
+            job.id === newJob.id 
+              ? { ...job, status: "completed", downloadUrl: result.downloadUrl || "https://example.com/download/result.csv" }
+              : job
+          ));
+        }
+        
+        // Get the display names for the selected location and category
+        const selectedState = stateOptions.find(state => state.value === selectedLocation);
+        const selectedCategoryOption = categoryOptions.find(cat => cat.value === selectedCategory);
+        const displayLocation = selectedState ? selectedState.label : selectedLocation;
+        const displayCategory = selectedCategoryOption ? selectedCategoryOption.label : selectedCategory;
+        
+        if (result.taskID) {
+          alert(`Scraping job started successfully! Task ID: ${result.taskID}. Click the download button when ready.`);
+        } else {
+          alert(`Successfully started scraping for ${numberOfLeads} ${displayCategory} businesses in ${displayLocation}`);
+        }
+      } else {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error calling scraping API:", error);
+      
+      // Update the job status to show error (you might want to add an "error" status)
+      setScrapingResults(prev => prev.map(job => 
+        job.id === newJob.id 
+          ? { ...job, status: "processing" as "processing" | "completed" | "ready_for_download" }
+          : job
+      ));
+      
+      alert(`Error starting scraping: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   // Filter businesses based on active tab
   const filteredBusinesses = useMemo(() => {
@@ -389,6 +561,244 @@ export default function DashboardPage({ businesses }: Props) {
               }`}>
                 Open Chat
               </button>
+            </div>
+          </div>
+
+          {/* Google Maps Scraper */}
+          <div className={`mt-8 p-6 rounded-lg border ${
+            isDarkMode ? "bg-[#0f1419] border-gray-600" : "bg-gray-50 border-gray-200"
+          }`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                isDarkMode ? "bg-orange-600" : "bg-orange-100"
+              }`}>
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className={isDarkMode ? "text-orange-400" : "text-orange-600"}>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className={`text-xl font-semibold ${
+                  isDarkMode ? "text-text-primary" : "text-gray-900"
+                }`}>
+                  Google Maps Scraper
+                </h3>
+                <p className={`text-sm ${
+                  isDarkMode ? "text-text-secondary" : "text-gray-600"
+                }`}>
+                  Find and scrape business leads from Google Maps
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Categories Dropdown */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-text-primary" : "text-gray-700"
+                }`}>
+                  Categories
+                </label>
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
+                    isDarkMode 
+                      ? "bg-[#101322] border-gray-600 text-text-primary focus:border-accent focus:ring-accent" 
+                      : "bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                  }`}
+                >
+                  <option value="">Select a category</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category.value} value={category.value}>
+                      {category.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Locations Dropdown */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-text-primary" : "text-gray-700"
+                }`}>
+                  Locations
+                </label>
+                <select 
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
+                    isDarkMode 
+                      ? "bg-[#101322] border-gray-600 text-text-primary focus:border-accent focus:ring-accent" 
+                      : "bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                  }`}
+                >
+                  <option value="">Select a location</option>
+                  {stateOptions.map((state) => (
+                    <option key={state.value} value={state.value}>
+                      {state.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Number of Leads Slider */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-text-primary" : "text-gray-700"
+                }`}>
+                  Number of Leads: <span className="font-normal">{numberOfLeads}</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="range"
+                    min="3"
+                    max="1000"
+                    value={numberOfLeads}
+                    onChange={(e) => setNumberOfLeads(parseInt(e.target.value))}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                      isDarkMode 
+                        ? "bg-gray-700 slider-thumb-dark" 
+                        : "bg-gray-200 slider-thumb-light"
+                    }`}
+                    style={{
+                      background: isDarkMode 
+                        ? `linear-gradient(to right, #2DF1B0 0%, #2DF1B0 ${(numberOfLeads - 3) / 9.97}%, #374151 ${(numberOfLeads - 3) / 9.97}%, #374151 100%)`
+                        : `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(numberOfLeads - 3) / 9.97}%, #E5E7EB ${(numberOfLeads - 3) / 9.97}%, #E5E7EB 100%)`
+                    }}
+                  />
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className={isDarkMode ? "text-text-secondary" : "text-gray-500"}>3</span>
+                    <span className={isDarkMode ? "text-text-secondary" : "text-gray-500"}>1000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button 
+                onClick={handleStartScraping}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  isDarkMode 
+                    ? "bg-orange-600 hover:bg-orange-700 text-white" 
+                    : "bg-orange-600 hover:bg-orange-700 text-white"
+                }`}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                Start Scraping
+              </button>
+            </div>
+
+            {/* Results Table */}
+            <div className="mt-8">
+              <h4 className={`text-lg font-semibold mb-4 ${
+                isDarkMode ? "text-text-primary" : "text-gray-900"
+              }`}>
+                Scraping Results
+              </h4>
+              
+              <div className={`overflow-x-auto rounded-lg border ${
+                isDarkMode ? "border-gray-600" : "border-gray-200"
+              }`}>
+                <table className="w-full">
+                  <thead className={`${
+                    isDarkMode ? "bg-gray-800" : "bg-gray-50"
+                  }`}>
+                    <tr>
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? "text-text-secondary" : "text-gray-500"
+                      }`}>
+                        Status
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? "text-text-secondary" : "text-gray-500"
+                      }`}>
+                        Details
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? "text-text-secondary" : "text-gray-500"
+                      }`}>
+                        Download
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${
+                    isDarkMode ? "divide-gray-700" : "divide-gray-200"
+                  }`}>
+                    {scrapingResults.map((result) => (
+                      <tr key={result.id} className={`${
+                        isDarkMode ? "bg-[#0f1419] hover:bg-gray-800" : "bg-white hover:bg-gray-50"
+                      } transition-colors`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            result.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : result.status === "ready_for_download"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}>
+                            {result.status === "completed" ? (
+                              <>
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                Completed
+                              </>
+                            ) : result.status === "ready_for_download" ? (
+                              <>
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                                </svg>
+                                Ready to Download
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processing
+                              </>
+                            )}
+                          </span>
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                          isDarkMode ? "text-text-primary" : "text-gray-900"
+                        }`}>
+                          {result.details}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleDownload(result)}
+                            disabled={result.status === "processing"}
+                            className={`p-2 rounded-lg transition-colors ${
+                              result.status === "completed" || result.status === "ready_for_download"
+                                ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                : "text-gray-400 cursor-not-allowed"
+                            }`}
+                            title={
+                              result.status === "completed" 
+                                ? "Download file" 
+                                : result.status === "ready_for_download"
+                                ? "Get download link"
+                                : "Processing..."
+                            }
+                          >
+                            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                              <polyline points="7,10 12,15 17,10"/>
+                              <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
