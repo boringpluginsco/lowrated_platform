@@ -26,10 +26,17 @@ const corsOptions = {
       'https://lowratedplatform-production.up.railway.app'
     ];
     
+    // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
+    } 
+    // Allow Vercel preview deployments (any URL ending with .vercel.app)
+    else if (origin.endsWith('.vercel.app')) {
+      console.log('✅ Allowing Vercel preview deployment:', origin);
+      callback(null, true);
+    }
+    else {
+      console.log('❌ CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -367,14 +374,27 @@ app.get('/api/email/inbound', async (req, res) => {
     const fs = require('fs').promises;
     const path = require('path');
     
-    const emailsFile = path.join(__dirname, 'data', 'inbound_emails.json');
+    // Ensure data directory exists
+    const dataDir = path.join(__dirname, 'data');
+    try {
+      await fs.access(dataDir);
+    } catch (error) {
+      console.log('📁 Creating data directory...');
+      await fs.mkdir(dataDir, { recursive: true });
+    }
+    
+    const emailsFile = path.join(dataDir, 'inbound_emails.json');
     
     let emails = [];
     try {
       const existingData = await fs.readFile(emailsFile, 'utf8');
+      console.log('📁 Read existing data:', existingData.substring(0, 100) + '...');
       emails = JSON.parse(existingData);
+      console.log('📁 Parsed emails successfully, count:', emails.length);
     } catch (error) {
-      // File doesn't exist, return empty array
+      console.log('📁 Error reading/parsing emails file:', error.message);
+      console.log('📁 Starting with empty array');
+      // File doesn't exist or is invalid JSON, return empty array
       emails = [];
     }
     
