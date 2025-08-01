@@ -10,15 +10,35 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: [
-    'http://localhost:5173', 
-    'http://localhost:5174', 
-    'http://localhost:3000',
-    'https://lowrated-platform.vercel.app'  // Add your Vercel domain
-  ],
-  credentials: true
-}));
+// CORS configuration - more flexible for production
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173', 
+      'http://localhost:5174', 
+      'http://localhost:3000',
+      'https://lowrated-platform.vercel.app',
+      'https://lowratedplatform-production.up.railway.app',
+      'https://lowratedplatform.vercel.app',
+      'https://lowratedplatform-production.up.railway.app'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check endpoint
@@ -340,6 +360,9 @@ async function storeInboundEmail(emailData, businessId) {
 // Get inbound emails endpoint
 app.get('/api/email/inbound', async (req, res) => {
   try {
+    console.log('📧 Inbound emails request received from:', req.headers.origin);
+    console.log('📧 Request headers:', req.headers);
+    
     const { businessId, limit = 50 } = req.query;
     const fs = require('fs').promises;
     const path = require('path');
@@ -363,6 +386,8 @@ app.get('/api/email/inbound', async (req, res) => {
     // Sort by timestamp (newest first) and limit results
     emails.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
     emails = emails.slice(0, parseInt(limit));
+    
+    console.log(`📧 Returning ${emails.length} emails`);
     
     res.json({
       success: true,

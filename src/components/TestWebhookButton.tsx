@@ -3,99 +3,110 @@ import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-interface TestWebhookButtonProps {
-  compact?: boolean;
-}
-
-export default function TestWebhookButton({ compact = false }: TestWebhookButtonProps) {
+export default function TestWebhookButton() {
   const { isDarkMode } = useTheme();
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
-  const sendTestEmail = async () => {
-    setIsLoading(true);
-    setResult(null);
+  const testWebhook = async () => {
+    setLoading(true);
+    setStatus('Testing webhook...');
     
     try {
-      const testEmail = {
-        from: 'test@example.com',
-        to: 'jordan@galleongroup.co',
-        subject: 'Test Email - ' + new Date().toLocaleString(),
-        html: '<p>This is a test email sent at ' + new Date().toLocaleString() + '</p>',
-        text: 'This is a test email sent at ' + new Date().toLocaleString(),
-        headers: {
-          'message-id': 'test-' + Date.now() + '@example.com',
-          'references': 'test-reference@example.com'
-        },
-        attachments: []
-      };
-
-      const response = await fetch(`${API_BASE_URL}/email/inbound`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(testEmail)
-      });
-
+      console.log('🔧 Testing API configuration...');
+      console.log('🔧 API_BASE_URL:', API_BASE_URL);
+      console.log('🔧 VITE_API_URL:', import.meta.env.VITE_API_URL);
+      
+      const response = await fetch(`${API_BASE_URL}/health`);
+      const data = await response.json();
+      
       if (response.ok) {
-        setResult('✅ Test email sent successfully! Check the email inbox.');
+        setStatus(`✅ Health check passed: ${data.message}`);
+        console.log('✅ Health check response:', data);
       } else {
-        const error = await response.text();
-        setResult('❌ Error: ' + error);
+        setStatus(`❌ Health check failed: ${response.status}`);
+        console.error('❌ Health check failed:', response.status, data);
       }
     } catch (error) {
-      setResult('❌ Error: ' + (error as Error).message);
+      setStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Test error:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  if (compact) {
-    return (
-      <button
-        onClick={sendTestEmail}
-        disabled={isLoading}
-        className={`px-4 py-2 rounded-md text-sm font-medium ${
-          isDarkMode
-            ? 'bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white'
-            : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white'
-        }`}
-        title="Send test email to webhook"
-      >
-        {isLoading ? 'Sending...' : 'Test Email'}
-      </button>
-    );
-  }
+  const testInboundEmails = async () => {
+    setLoading(true);
+    setStatus('Testing inbound emails...');
+    
+    try {
+      console.log('🔧 Testing inbound emails endpoint...');
+      console.log('🔧 Full URL:', `${API_BASE_URL}/email/inbound?limit=50`);
+      
+      const response = await fetch(`${API_BASE_URL}/email/inbound?limit=50`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setStatus(`✅ Inbound emails test passed: Found ${data.count} emails`);
+        console.log('✅ Inbound emails response:', data);
+      } else {
+        setStatus(`❌ Inbound emails test failed: ${response.status}`);
+        console.error('❌ Inbound emails test failed:', response.status, data);
+      }
+    } catch (error) {
+      setStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Inbound emails test error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className={`p-4 rounded-lg border ${
-      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-    }`}>
-      <h3 className="text-lg font-semibold mb-2">Test Webhook</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Send a test email to verify the webhook is working
-      </p>
+    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-800'}`}>
+      <h3 className="text-lg font-semibold mb-4">API Configuration Test</h3>
       
-      <button
-        onClick={sendTestEmail}
-        disabled={isLoading}
-        className={`px-4 py-2 rounded-md text-sm font-medium ${
-          isDarkMode
-            ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white'
-            : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white'
-        }`}
-      >
-        {isLoading ? 'Sending...' : 'Send Test Email'}
-      </button>
+      <div className="mb-4">
+        <p className="text-sm mb-2">
+          <strong>API Base URL:</strong> {API_BASE_URL}
+        </p>
+        <p className="text-sm mb-2">
+          <strong>VITE_API_URL:</strong> {import.meta.env.VITE_API_URL || 'Not set (using default)'}
+        </p>
+      </div>
       
-      {result && (
-        <div className={`mt-3 p-3 rounded text-sm ${
-          result.includes('✅') 
-            ? 'bg-green-100 text-green-800 border border-green-400'
-            : 'bg-red-100 text-red-800 border border-red-400'
+      <div className="space-y-2">
+        <button
+          onClick={testWebhook}
+          disabled={loading}
+          className={`px-4 py-2 rounded ${
+            isDarkMode 
+              ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600' 
+              : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400'
+          } text-white disabled:opacity-50`}
+        >
+          {loading ? 'Testing...' : 'Test Health Check'}
+        </button>
+        
+        <button
+          onClick={testInboundEmails}
+          disabled={loading}
+          className={`px-4 py-2 rounded ${
+            isDarkMode 
+              ? 'bg-green-600 hover:bg-green-700 disabled:bg-gray-600' 
+              : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-400'
+          } text-white disabled:opacity-50 ml-2`}
+        >
+          {loading ? 'Testing...' : 'Test Inbound Emails'}
+        </button>
+      </div>
+      
+      {status && (
+        <div className={`mt-4 p-3 rounded text-sm ${
+          status.includes('✅') 
+            ? (isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800')
+            : (isDarkMode ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800')
         }`}>
-          {result}
+          {status}
         </div>
       )}
     </div>
