@@ -147,7 +147,6 @@ export default function Layout({ children }: PropsWithChildren) {
               <NavLink to="/" label="Trust Pilot" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 9l1.5 9a2 2 0 002 2h11a2 2 0 002-2L21 9"/><path d="M5 9V7a7 7 0 0114 0v2"/><path d="M9 13h6"/></svg>} />
               <NavLink to="/google" label="Google" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>} />
               <NavLink to="/messages" label="Messages" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M4 19h16M4 5h16M4 12h16"/><circle cx="19" cy="19" r="2"/></svg>} />
-              <NavLink to="/email-inbox" label="Email Inbox" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>} />
             </nav>
           </div>
           {/* Bottom section: Analytics, Login and Menu */}
@@ -156,6 +155,8 @@ export default function Layout({ children }: PropsWithChildren) {
             <div className="px-6 pb-2">
               <NavLink to="/analytics" label="Analytics" icon={<svg width="22" height="22" fill="none" stroke="#2DF1B0" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>} />
             </div>
+            
+
             
             {!isAuthenticated && (
               <div className="px-6 pb-2">
@@ -215,6 +216,19 @@ export default function Layout({ children }: PropsWithChildren) {
                       <span>What's new</span>
                       <span className={`text-xs ${isDarkMode ? 'text-text-secondary' : 'text-gray-500'}`}>05/31</span>
                     </div>
+                    <Link 
+                      to="/email-inbox"
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${
+                        isDarkMode 
+                          ? 'text-text-primary hover:bg-[#181B26] hover:text-accent' 
+                          : 'text-gray-900 hover:bg-gray-100 hover:text-blue-600'
+                      }`}
+                    >
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                      </svg>
+                      Email Inbox
+                    </Link>
                     {/* Theme Toggle */}
                     <div className={`px-4 py-2 border-t mt-1 pt-3 ${
                       isDarkMode ? 'border-gray-600' : 'border-gray-200'
