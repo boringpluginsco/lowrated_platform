@@ -85,7 +85,7 @@ export default function EmailInboxPage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
-              <TestWebhookButton compact />
+              <TestWebhookButton />
               <button
                 onClick={fetchEmails}
                 className={`px-4 py-2 rounded-md text-sm font-medium ${
