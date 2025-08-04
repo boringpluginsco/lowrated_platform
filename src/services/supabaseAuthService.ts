@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { User, LoginCredentials, SignUpCredentials } from '../types/auth'
+import type { LoginCredentials, SignUpCredentials } from '../types/auth'
 
 export interface SupabaseUser {
   id: string
@@ -298,30 +298,7 @@ export const supabaseAuthService = {
     }
   },
 
-  // Test function to check auth status
-  testAuthStatus: async (email: string): Promise<{ exists: boolean; confirmed: boolean; error: string | null }> => {
-    try {
-      // Try to get user info without authentication
-      const { data: { user }, error } = await supabase.auth.admin.getUserByEmail(email);
-      
-      if (error) {
-        console.log('Test auth status error:', error);
-        return { exists: false, confirmed: false, error: error.message };
-      }
-      
-      return { 
-        exists: !!user, 
-        confirmed: !!user?.email_confirmed_at, 
-        error: null 
-      };
-    } catch (error) {
-      return { 
-        exists: false, 
-        confirmed: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
-  },
+
 
   // Listen to auth state changes
   onAuthStateChange: (callback: (user: SupabaseUser | null) => void) => {

@@ -6,10 +6,6 @@ type ScrapingJobInsert = Database['public']['Tables']['scraping_jobs']['Insert']
 type ScrapingJobUpdate = Database['public']['Tables']['scraping_jobs']['Update']
 
 type BusinessStage = Database['public']['Tables']['business_stages']['Row']
-type BusinessStageInsert = Database['public']['Tables']['business_stages']['Insert']
-
-type StarredBusiness = Database['public']['Tables']['starred_businesses']['Row']
-type StarredBusinessInsert = Database['public']['Tables']['starred_businesses']['Insert']
 
 type EmailThread = Database['public']['Tables']['email_threads']['Row']
 type EmailThreadInsert = Database['public']['Tables']['email_threads']['Insert']
@@ -102,7 +98,7 @@ export class DatabaseService {
     return stages
   }
 
-  async updateBusinessStage(businessId: string, stage: string): Promise<void> {
+  async updateBusinessStage(businessId: string, stage: BusinessStage['stage']): Promise<void> {
     // First try to update existing record
     const { data: existing } = await supabase
       .from('business_stages')
@@ -116,7 +112,7 @@ export class DatabaseService {
       const { error } = await supabase
         .from('business_stages')
         .update({ 
-          stage: stage as any, 
+          stage, 
           updated_at: new Date().toISOString() 
         })
         .eq('id', existing.id)
@@ -132,7 +128,7 @@ export class DatabaseService {
         .insert({
           user_id: this.userId,
           business_id: businessId,
-          stage: stage as any
+          stage
         })
 
       if (error) {

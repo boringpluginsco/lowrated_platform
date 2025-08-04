@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Business } from "../types";
 import { useTheme } from "../context/ThemeContext";
-import { googleBusinessService, type GoogleBusiness } from "../services/googleBusinessService";
+
 import AddGoogleBusinessModal from "../components/AddGoogleBusinessModal";
 import DataImportModal from "../components/CsvImportModal";
 
@@ -43,40 +43,14 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
   const [verifiedBusinesses, setVerifiedBusinesses] = useState<Set<string>>(new Set());
   const [verifyingBusinesses, setVerifyingBusinesses] = useState<Set<string>>(new Set());
 
-  // State for database businesses and add modal
-  const [databaseBusinesses, setDatabaseBusinesses] = useState<GoogleBusiness[]>([]);
+  // State for add modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCsvImportModalOpen, setIsCsvImportModalOpen] = useState(false);
-  const [isLoadingDatabase, setIsLoadingDatabase] = useState(false);
-
-  // Load database businesses on component mount
-  useEffect(() => {
-    const loadDatabaseBusinesses = async () => {
-      setIsLoadingDatabase(true);
-      try {
-        const { data, error } = await googleBusinessService.getAll();
-        if (error) {
-          console.error('Error loading database businesses:', error);
-        } else if (data) {
-          setDatabaseBusinesses(data);
-        }
-      } catch (err) {
-        console.error('Error loading database businesses:', err);
-      } finally {
-        setIsLoadingDatabase(false);
-      }
-    };
-
-    loadDatabaseBusinesses();
-  }, []);
 
   // Handle successful business addition
   const handleBusinessAdded = async () => {
-    // Reload database businesses
-    const { data, error } = await googleBusinessService.getAll();
-    if (!error && data) {
-      setDatabaseBusinesses(data);
-    }
+    // Could reload data here if needed
+    console.log('Business added successfully');
   };
 
   // Filter and sort businesses (only show ratings < 3.9)

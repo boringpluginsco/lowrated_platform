@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { googleBusinessService, type GoogleBusiness } from '../services/googleBusinessService';
+import { googleBusinessService } from '../services/googleBusinessService';
 
 interface DataImportModalProps {
   isOpen: boolean;

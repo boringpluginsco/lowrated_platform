@@ -30,7 +30,7 @@ export class MigrationService {
       // Migrate business stages
       const localStages = loadBusinessStages()
       for (const [businessId, stage] of Object.entries(localStages)) {
-        await this.databaseService.updateBusinessStage(businessId, stage)
+        await this.databaseService.updateBusinessStage(businessId, stage as "New" | "Contacted" | "Engaged" | "Qualified" | "Converted")
         results.businessStages++
       }
 

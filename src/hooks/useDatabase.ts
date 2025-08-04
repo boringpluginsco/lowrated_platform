@@ -71,9 +71,7 @@ export function useScrapingJobs() {
       }
     }
 
-    if (getDatabaseService) {
-      loadScrapingJobs()
-    }
+    loadScrapingJobs()
   }, [getDatabaseService, handleError])
 
   // Set up real-time subscription
@@ -163,9 +161,7 @@ export function useBusinessStages() {
       }
     }
 
-    if (getDatabaseService) {
-      loadBusinessStages()
-    }
+    loadBusinessStages()
   }, [getDatabaseService, handleError])
 
   // Set up real-time subscription
@@ -193,7 +189,7 @@ export function useBusinessStages() {
     }
   }, [getDatabaseService])
 
-  const updateBusinessStage = useCallback(async (businessId: string, stage: string) => {
+  const updateBusinessStage = useCallback(async (businessId: string, stage: "New" | "Contacted" | "Engaged" | "Qualified" | "Converted") => {
     try {
       const service = getDatabaseService()
       await service.updateBusinessStage(businessId, stage)

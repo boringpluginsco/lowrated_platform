@@ -5,7 +5,7 @@ export async function testSupabaseConnection() {
   
   try {
     // Test basic connection
-    const { data, error } = await supabase.from('user_profiles').select('count').limit(1)
+    const { error } = await supabase.from('user_profiles').select('count').limit(1)
     
     if (error) {
       console.error('❌ Database connection failed:', error)
@@ -25,7 +25,7 @@ export async function testTriggerCreation() {
   
   try {
     // Check if the trigger exists
-    const { data, error } = await supabase.rpc('check_trigger_exists', {
+    const { error } = await supabase.rpc('check_trigger_exists', {
       trigger_name: 'on_auth_user_created'
     })
     

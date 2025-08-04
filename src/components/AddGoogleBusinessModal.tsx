@@ -208,7 +208,7 @@ export default function AddGoogleBusinessModal({ isOpen, onClose, onSuccess }: A
                 <input
                   type="text"
                   name="address"
-                  value={formData.address}
+                  value={formData.address || ''}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#181B26] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-secondary"
                   placeholder="Business address"
@@ -222,7 +222,7 @@ export default function AddGoogleBusinessModal({ isOpen, onClose, onSuccess }: A
                 <input
                   type="url"
                   name="domain"
-                  value={formData.domain}
+                  value={formData.domain || ''}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#181B26] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-secondary"
                   placeholder="https://example.com"

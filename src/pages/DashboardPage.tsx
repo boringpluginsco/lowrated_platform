@@ -18,10 +18,9 @@ export default function DashboardPage({ businesses }: Props) {
   const [activeTab, setActiveTab] = useState<BusinessStage>("New");
   
   // Database hooks
-  const { businessStages, isLoading: stagesLoading } = useBusinessStages();
+  const { businessStages } = useBusinessStages();
   const { 
     scrapingJobs, 
-    isLoading: jobsLoading, 
     createScrapingJob, 
     updateScrapingJob 
   } = useScrapingJobs();
