@@ -16,8 +16,8 @@ export default function MobileBlock({ children }: MobileBlockProps) {
       const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
       const isMobileDevice = mobileRegex.test(navigator.userAgent);
       
-      // Also check screen width for tablets in portrait mode
-      const isSmallScreen = window.innerWidth < 768;
+      // Check screen width - show desktop access required only on screens less than 1000px
+      const isSmallScreen = window.innerWidth < 1000;
       
       setIsMobile(isMobileDevice || isSmallScreen);
       setIsLoading(false);

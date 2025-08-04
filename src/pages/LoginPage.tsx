@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { LoginCredentials } from '../types/auth';
@@ -11,11 +11,17 @@ export default function LoginPage() {
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        setLoadingTimeout(true);
+      }
+    }, 10000); // 10 second timeout
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +31,8 @@ export default function LoginPage() {
     try {
       const success = await login(credentials);
       if (!success) {
-        setError('Invalid email or password');
+        // The error message will be set by the login function
+        setError('Invalid email or password. If you just signed up, please check your email and confirm your account.');
       }
     } catch (err) {
       setError('Login failed. Please try again.');
@@ -42,11 +49,32 @@ export default function LoginPage() {
     }));
   };
 
-  if (isLoading) {
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (isLoading && !loadingTimeout) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-text-primary font-mono">
           <div className="animate-pulse">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingTimeout) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-text-primary font-mono text-center">
+          <div className="mb-4">Loading timeout. Please refresh the page.</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/80"
+          >
+            Refresh Page
+          </button>
         </div>
       </div>
     );
@@ -126,6 +154,15 @@ export default function LoginPage() {
                 <h1 className="text-2xl font-bold text-text-primary">Sign in to B2B Listings</h1>
               </div>
               <p className="text-text-secondary text-sm">Access your business directory</p>
+              <p className="text-text-secondary text-sm mt-2">
+                Don't have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="text-accent hover:text-accent/80 underline"
+                >
+                  Sign up here
+                </Link>
+              </p>
             </div>
 
             {/* Login Form */}

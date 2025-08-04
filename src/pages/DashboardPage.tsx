@@ -2,10 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Business } from "../types";
 import { useTheme } from "../context/ThemeContext";
-import {
-  // saveBusinessStages,
-  loadBusinessStages,
-} from "../utils/persistence";
+import { useScrapingJobs, useBusinessStages } from "../hooks/useDatabase";
 import { getStateOptions, formatLocationForJSON } from "../utils/locationUtils";
 import { getCategoryOptions, formatCategoryForJSON } from "../utils/categoryUtils";
 
@@ -19,18 +16,15 @@ export default function DashboardPage({ businesses }: Props) {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<BusinessStage>("New");
-  const [businessStages] = useState<
-    Record<string, BusinessStage>
-  >(() => {
-    // Load persisted stages or initialize as 'New'
-    const persistedStages = loadBusinessStages();
-    const initialStages: Record<string, BusinessStage> = {};
-    businesses.forEach((business) => {
-      initialStages[business.id] =
-        (persistedStages[business.id] as BusinessStage) || "New";
-    });
-    return initialStages;
-  });
+  
+  // Database hooks
+  const { businessStages, isLoading: stagesLoading } = useBusinessStages();
+  const { 
+    scrapingJobs, 
+    isLoading: jobsLoading, 
+    createScrapingJob, 
+    updateScrapingJob 
+  } = useScrapingJobs();
 
   // Google Maps Scraper state
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -42,59 +36,41 @@ export default function DashboardPage({ businesses }: Props) {
   
   // Get category options
   const categoryOptions = useMemo(() => getCategoryOptions(), []);
-  const [scrapingResults, setScrapingResults] = useState<Array<{
-    id: number;
-    status: "processing" | "completed" | "ready_for_download";
-    details: string;
-    downloadUrl: string | null;
-    taskID?: string;
-  }>>([
-    {
-      id: 1,
-      status: "ready_for_download",
-      details: "Restaurants, New York, NY, 3",
-      downloadUrl: null,
-      taskID: "20250801102258s7f"
-    },
-    {
-      id: 2,
-      status: "processing",
-      details: "Retail, Los Angeles, CA, 100",
-      downloadUrl: null
-    },
-    {
-      id: 3,
-      status: "completed",
-      details: "Healthcare, Chicago, IL, 75",
-      downloadUrl: "https://example.com/download/file3.csv"
-    }
-  ]);
 
   // Handle download button click
   const handleDownload = async (result: any) => {
-    if (result.status === "ready_for_download" && result.taskID) {
+    if (result.status === "ready_for_download" && result.task_id) {
       try {
-        console.log("Requesting download URL for taskID:", result.taskID);
+        console.log("Requesting download URL for taskID:", result.task_id);
         
         const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/get_scraped_google_data', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ taskID: result.taskID })
+          body: JSON.stringify({ taskID: result.task_id })
         });
         
         if (response.ok) {
           const data = await response.json();
           console.log("Download API response:", data);
           
-          // Just make the API call and handle the response
-          // The API should return the download URL or handle the download directly
-          console.log("API call successful with taskID:", result.taskID);
-          console.log("Response data:", data);
+          // Extract the download URL from the response
+          const downloadURL = data.downloadURL || data.downloadUrl || data.url;
           
-          // For now, just log the response and show success
-          alert(`API call successful for taskID: ${result.taskID}. Check console for response details.`);
+          if (downloadURL) {
+            // Update the job in the database
+            await updateScrapingJob(result.id, {
+              status: "completed",
+              download_url: downloadURL
+            });
+            
+            // Open the download URL in a new tab
+            window.open(downloadURL, '_blank');
+          } else {
+            console.log("No download URL found in response. Available fields:", Object.keys(data));
+            alert("Download URL not available yet. Please try again later.");
+          }
         } else {
           throw new Error(`Download API request failed with status: ${response.status}`);
         }
@@ -102,9 +78,9 @@ export default function DashboardPage({ businesses }: Props) {
         console.error("Error requesting download:", error);
         alert(`Error requesting download: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    } else if (result.downloadUrl) {
+    } else if (result.download_url) {
       // If already has download URL, just open it
-      window.open(result.downloadUrl, '_blank');
+      window.open(result.download_url, '_blank');
     }
   };
 
@@ -115,22 +91,24 @@ export default function DashboardPage({ businesses }: Props) {
       return;
     }
     
-    // Add new scraping job to results
-    const selectedState = stateOptions.find(state => state.value === selectedLocation);
-    const selectedCategoryOption = categoryOptions.find(cat => cat.value === selectedCategory);
-    const displayLocation = selectedState ? selectedState.label : selectedLocation;
-    const displayCategory = selectedCategoryOption ? selectedCategoryOption.label : selectedCategory;
-    const newJob = {
-      id: Date.now(),
-      status: "processing" as "processing" | "completed" | "ready_for_download",
-      details: `${displayCategory}, ${displayLocation}, ${numberOfLeads}`,
-      downloadUrl: null,
-      taskID: undefined
-    };
-    
-    setScrapingResults(prev => [newJob, ...prev]);
-    
     try {
+      // Get the display names for the selected location and category
+      const selectedState = stateOptions.find(state => state.value === selectedLocation);
+      const selectedCategoryOption = categoryOptions.find(cat => cat.value === selectedCategory);
+      const displayLocation = selectedState ? selectedState.label : selectedLocation;
+      const displayCategory = selectedCategoryOption ? selectedCategoryOption.label : selectedCategory;
+      
+      // Create new scraping job in database
+      const newJob = await createScrapingJob({
+        category: selectedCategory,
+        location: selectedLocation,
+        number_of_leads: numberOfLeads,
+        status: "processing",
+        details: `${displayCategory}, ${displayLocation}, ${numberOfLeads}`,
+        task_id: null,
+        download_url: null
+      });
+      
       // Prepare the API payload with properly formatted location and category
       const formattedLocation = formatLocationForJSON(selectedLocation);
       const formattedCategory = formatCategoryForJSON(selectedCategory);
@@ -160,29 +138,19 @@ export default function DashboardPage({ businesses }: Props) {
         // Check if we received a taskID
         if (result.taskID) {
           // Update the job with taskID and set status to ready_for_download
-          setScrapingResults(prev => prev.map(job => 
-            job.id === newJob.id 
-              ? { ...job, status: "ready_for_download", taskID: result.taskID }
-              : job
-          ));
-        } else {
-          // Fallback: if no taskID, assume it's completed with download URL
-          setScrapingResults(prev => prev.map(job => 
-            job.id === newJob.id 
-              ? { ...job, status: "completed", downloadUrl: result.downloadUrl || "https://example.com/download/result.csv" }
-              : job
-          ));
-        }
-        
-        // Get the display names for the selected location and category
-        const selectedState = stateOptions.find(state => state.value === selectedLocation);
-        const selectedCategoryOption = categoryOptions.find(cat => cat.value === selectedCategory);
-        const displayLocation = selectedState ? selectedState.label : selectedLocation;
-        const displayCategory = selectedCategoryOption ? selectedCategoryOption.label : selectedCategory;
-        
-        if (result.taskID) {
+          await updateScrapingJob(newJob.id, {
+            status: "ready_for_download",
+            task_id: result.taskID
+          });
+          
           alert(`Scraping job started successfully! Task ID: ${result.taskID}. Click the download button when ready.`);
         } else {
+          // Fallback: if no taskID, assume it's completed with download URL
+          await updateScrapingJob(newJob.id, {
+            status: "completed",
+            download_url: result.downloadUrl || result.download_url || "https://example.com/download/result.csv"
+          });
+          
           alert(`Successfully started scraping for ${numberOfLeads} ${displayCategory} businesses in ${displayLocation}`);
         }
       } else {
@@ -190,14 +158,6 @@ export default function DashboardPage({ businesses }: Props) {
       }
     } catch (error) {
       console.error("Error calling scraping API:", error);
-      
-      // Update the job status to show error (you might want to add an "error" status)
-      setScrapingResults(prev => prev.map(job => 
-        job.id === newJob.id 
-          ? { ...job, status: "processing" as "processing" | "completed" | "ready_for_download" }
-          : job
-      ));
-      
       alert(`Error starting scraping: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -728,7 +688,7 @@ export default function DashboardPage({ businesses }: Props) {
                   <tbody className={`divide-y ${
                     isDarkMode ? "divide-gray-700" : "divide-gray-200"
                   }`}>
-                    {scrapingResults.map((result) => (
+                    {scrapingJobs.map((result: any) => (
                       <tr key={result.id} className={`${
                         isDarkMode ? "bg-[#0f1419] hover:bg-gray-800" : "bg-white hover:bg-gray-50"
                       } transition-colors`}>

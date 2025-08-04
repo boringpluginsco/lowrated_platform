@@ -1,0 +1,6 @@
+name,rating,reviews_count,address,domain,instagram,linkedin,facebook,website,is_verified
+"Acme Medical Center",4.2,156,"123 Main Street, Downtown","https://acmemedical.com","https://instagram.com/acmemedical","https://linkedin.com/company/acmemedical","https://facebook.com/acmemedical","https://acmemedical.com",true
+"Downtown Dental Clinic",3.8,89,"456 Oak Avenue, City Center","https://downtowndental.com","https://instagram.com/downtowndental","https://linkedin.com/company/downtowndental","https://facebook.com/downtowndental","https://downtowndental.com",false
+"City Pharmacy",4.5,203,"789 Pine Street, Westside","https://citypharmacy.com","https://instagram.com/citypharmacy","https://linkedin.com/company/citypharmacy","https://facebook.com/citypharmacy","https://citypharmacy.com",true
+"Family Health Practice",4.1,127,"321 Elm Road, North District","https://familyhealth.com","https://instagram.com/familyhealth","https://linkedin.com/company/familyhealth","https://facebook.com/familyhealth","https://familyhealth.com",false
+"Urgent Care Plus",3.9,94,"654 Maple Drive, Eastside","https://urgentcareplus.com","https://instagram.com/urgentcareplus","https://linkedin.com/company/urgentcareplus","https://facebook.com/urgentcareplus","https://urgentcareplus.com",true 

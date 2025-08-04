@@ -12,6 +12,7 @@
   "dependencies": {
     "@chatscope/chat-ui-kit-react": "^2.1.1",
     "@chatscope/chat-ui-kit-styles": "^1.4.0",
+    "@supabase/supabase-js": "^2.53.0",
     "@tanstack/react-query": "^5.82.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

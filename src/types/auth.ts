@@ -19,7 +19,17 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface SignUpCredentials {
+  email: string;
+  password: string;
+  fullName: string;
+  role?: 'admin' | 'user' | 'viewer';
+}
+
 export interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<boolean>;
+  signUp: (credentials: SignUpCredentials) => Promise<boolean>;
   logout: () => void;
+  updateProfile: (updates: Partial<User>) => Promise<boolean>;
+  resetPassword: (email: string) => Promise<boolean>;
 } 

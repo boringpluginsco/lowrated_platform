@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import DirectoryPage from "./pages/DirectoryPage";
 import MessagingPage from "./pages/MessagingPage";
 import LoginPage from "./pages/LoginPage";
+import SignUpPage from "./pages/SignUpPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import GooglePage from "./pages/GooglePage";
@@ -10,6 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import EmailInboxPage from "./pages/EmailInboxPage";
 import Layout from "./Layout";
 import MobileBlock from "./components/MobileBlock";
+import { MigrationBanner } from "./components/MigrationBanner";
 // import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import type { Business, Message } from "./types";
@@ -156,8 +158,10 @@ export default function App() {
 
   return (
     <MobileBlock>
+      <MigrationBanner />
       <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
       <Route
         path="/"
         element={

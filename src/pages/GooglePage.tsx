@@ -1,6 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Business } from "../types";
 import { useTheme } from "../context/ThemeContext";
+import { googleBusinessService, type GoogleBusiness } from "../services/googleBusinessService";
+import AddGoogleBusinessModal from "../components/AddGoogleBusinessModal";
+import DataImportModal from "../components/CsvImportModal";
 
 interface Props {
   businesses: Business[];
@@ -39,6 +42,42 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
   // State for verification functionality
   const [verifiedBusinesses, setVerifiedBusinesses] = useState<Set<string>>(new Set());
   const [verifyingBusinesses, setVerifyingBusinesses] = useState<Set<string>>(new Set());
+
+  // State for database businesses and add modal
+  const [databaseBusinesses, setDatabaseBusinesses] = useState<GoogleBusiness[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCsvImportModalOpen, setIsCsvImportModalOpen] = useState(false);
+  const [isLoadingDatabase, setIsLoadingDatabase] = useState(false);
+
+  // Load database businesses on component mount
+  useEffect(() => {
+    const loadDatabaseBusinesses = async () => {
+      setIsLoadingDatabase(true);
+      try {
+        const { data, error } = await googleBusinessService.getAll();
+        if (error) {
+          console.error('Error loading database businesses:', error);
+        } else if (data) {
+          setDatabaseBusinesses(data);
+        }
+      } catch (err) {
+        console.error('Error loading database businesses:', err);
+      } finally {
+        setIsLoadingDatabase(false);
+      }
+    };
+
+    loadDatabaseBusinesses();
+  }, []);
+
+  // Handle successful business addition
+  const handleBusinessAdded = async () => {
+    // Reload database businesses
+    const { data, error } = await googleBusinessService.getAll();
+    if (!error && data) {
+      setDatabaseBusinesses(data);
+    }
+  };
 
   // Filter and sort businesses (only show ratings < 3.9)
   const sortedBusinesses = useMemo(() => {
@@ -237,6 +276,28 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
           </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsCsvImportModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 transition-colors font-mono text-sm"
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7,10 12,15 17,10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Import CSV
+            </button>
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-md hover:bg-accent/80 transition-colors font-mono text-sm"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              Add Business
+            </button>
+          </div>
         </div>
       </div>
 
@@ -564,6 +625,20 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
           </div>
         </div>
       )}
+
+      {/* Add Business Modal */}
+      <AddGoogleBusinessModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleBusinessAdded}
+      />
+
+      {/* Data Import Modal */}
+      <DataImportModal
+        isOpen={isCsvImportModalOpen}
+        onClose={() => setIsCsvImportModalOpen(false)}
+        onSuccess={handleBusinessAdded}
+      />
     </section>
   );
 } 
