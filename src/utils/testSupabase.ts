@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export async function testSupabaseConnection() {
   console.log('🧪 [testSupabase] Testing Supabase connection...')
@@ -9,7 +8,7 @@ export async function testSupabaseConnection() {
   try {
     // Test 1: Basic connection test
     console.log('🧪 [testSupabase] Test 1: Basic connection test...');
-    const { data: testData, error: testError } = await supabase
+    const { error: testError } = await supabase
       .from('user_profiles')
       .select('*')
       .limit(0)
@@ -26,7 +25,7 @@ export async function testSupabaseConnection() {
       
       // Test 2: Try with specific columns
       console.log('🧪 [testSupabase] Test 2: Trying with specific columns...');
-      const { data: testData2, error: testError2 } = await supabase
+      const { error: testError2 } = await supabase
         .from('user_profiles')
         .select('id, email')
         .limit(1)
@@ -42,7 +41,7 @@ export async function testSupabaseConnection() {
         
         // Test 3: Try without any select (just test connection)
         console.log('🧪 [testSupabase] Test 3: Testing raw connection...');
-        const { data: testData3, error: testError3 } = await supabase
+        const { error: testError3 } = await supabase
           .from('user_profiles')
           .select('id')
           .limit(0)
