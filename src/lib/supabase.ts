@@ -20,9 +20,9 @@ console.log('🔧 Supabase configuration:', {
 });
 
 // Create client with error handling
-let supabase: ReturnType<typeof createClient<Database>>;
+let supabase;
 try {
-  supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       // Enable automatic session persistence
       persistSession: true,
@@ -38,7 +38,7 @@ try {
 } catch (error) {
   console.error('❌ Failed to create Supabase client:', error)
   // Create a fallback client that will fail gracefully
-  supabase = createClient<Database>('https://invalid-url.supabase.co', 'invalid-key')
+  supabase = createClient('https://invalid-url.supabase.co', 'invalid-key')
 }
 
 export { supabase }
