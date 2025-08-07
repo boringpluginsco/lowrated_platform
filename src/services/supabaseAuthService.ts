@@ -354,7 +354,7 @@ export const supabaseAuthService = {
   // Listen to auth state changes
   onAuthStateChange: (callback: (user: SupabaseUser | null) => void) => {
     console.log('🔐 Setting up auth state change listener');
-    return supabase.auth.onAuthStateChange(async (event, session) => {
+    return supabase.auth.onAuthStateChange(async (event: any, session: any) => {
       console.log('🔐 Auth state change event:', event, 'Session:', session?.user?.id);
       
       if (event === 'SIGNED_IN' && session?.user) {

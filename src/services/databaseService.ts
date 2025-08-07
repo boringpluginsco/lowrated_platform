@@ -1,14 +1,43 @@
 import { supabase } from '../lib/supabase'
-import type { Database } from '../lib/supabase'
 
-type ScrapingJob = Database['public']['Tables']['scraping_jobs']['Row']
-type ScrapingJobInsert = Database['public']['Tables']['scraping_jobs']['Insert']
-type ScrapingJobUpdate = Database['public']['Tables']['scraping_jobs']['Update']
+// Define types manually since Database type is not available
+interface ScrapingJob {
+  id: string
+  user_id: string
+  category: string
+  location: string
+  number_of_leads: number
+  status: 'processing' | 'completed' | 'ready_for_download' | 'failed'
+  task_id: string | null
+  download_url: string | null
+  details: string
+  created_at: string
+  updated_at: string
+}
 
-type BusinessStage = Database['public']['Tables']['business_stages']['Row']
+type ScrapingJobInsert = Omit<ScrapingJob, 'id' | 'created_at' | 'updated_at'>
+type ScrapingJobUpdate = Partial<Omit<ScrapingJob, 'id' | 'user_id' | 'created_at'>>
 
-type EmailThread = Database['public']['Tables']['email_threads']['Row']
-type EmailThreadInsert = Database['public']['Tables']['email_threads']['Insert']
+interface BusinessStage {
+  id: string
+  user_id: string
+  business_id: string
+  stage: string
+  created_at: string
+  updated_at: string
+}
+
+interface EmailThread {
+  id: string
+  user_id: string
+  business_id: string
+  subject: string
+  emails: any[]
+  created_at: string
+  updated_at: string
+}
+
+type EmailThreadInsert = Omit<EmailThread, 'id' | 'created_at' | 'updated_at'>
 
 export class DatabaseService {
   private userId: string
@@ -91,7 +120,7 @@ export class DatabaseService {
     }
 
     const stages: Record<string, string> = {}
-    data?.forEach(item => {
+    data?.forEach((item: any) => {
       stages[item.business_id] = item.stage
     })
 
@@ -151,7 +180,7 @@ export class DatabaseService {
       throw error
     }
 
-    return data?.map(item => item.business_id) || []
+    return data?.map((item: any) => item.business_id) || []
   }
 
   async toggleStarredBusiness(businessId: string, type: 'directory' | 'google'): Promise<boolean> {
@@ -169,7 +198,7 @@ export class DatabaseService {
       const { error } = await supabase
         .from('starred_businesses')
         .delete()
-        .eq('id', existing.id)
+        .eq('id', (existing as any).id)
 
       if (error) {
         console.error('Error removing starred business:', error)
