@@ -5,10 +5,14 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Check if we're in development and provide fallback
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('❌ Missing Supabase environment variables. Using fallback configuration.')
-  console.warn('To use Supabase features, please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file')
+  console.error('❌ CRITICAL: Missing Supabase environment variables!')
+  console.error('❌ VITE_SUPABASE_URL:', supabaseUrl ? 'Set' : 'MISSING')
+  console.error('❌ VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Set' : 'MISSING')
+  console.error('❌ This will cause authentication to fail completely!')
 } else {
   console.log('✅ Supabase environment variables found')
+  console.log('🔧 URL:', supabaseUrl.substring(0, 30) + '...')
+  console.log('🔧 Key length:', supabaseAnonKey.length)
 }
 
 console.log('🔧 Supabase configuration:', {
@@ -32,6 +36,11 @@ try {
       autoRefreshToken: true,
       // Detect session in URL (for email confirmations, etc.)
       detectSessionInUrl: true
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'supabase-js-web/2.53.0'
+      }
     }
   })
   console.log('✅ Supabase client created successfully')

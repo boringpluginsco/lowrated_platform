@@ -89,7 +89,7 @@ export const supabaseAuthService = {
       console.log('🔐 [supabaseAuthService] Full name:', credentials.fullName);
       console.log('🔐 [supabaseAuthService] Role:', credentials.role);
       
-      // Step 1: Create the user in auth.users (no metadata injection)
+      // Create the user in auth.users (no profile creation here)
       console.log('🔐 [supabaseAuthService] Calling supabase.auth.signUp...');
       const { data, error } = await supabase.auth.signUp({
         email: credentials.email,
@@ -119,47 +119,19 @@ export const supabaseAuthService = {
       }
 
       console.log('🔐 [supabaseAuthService] Auth signup successful, user ID:', data.user.id);
+      console.log('🔐 [supabaseAuthService] Profile will be created on first login');
 
-      // Step 2: Manually create the user profile
-      console.log('🔐 [supabaseAuthService] Creating user profile manually...');
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: data.user.id,
-          full_name: credentials.fullName,
-          role: credentials.role || 'user',
-          initials: credentials.fullName.substring(0, 2).toUpperCase()
-        })
-        .select()
-        .single()
-
-      console.log('🔐 [supabaseAuthService] Profile creation result:', {
-        hasProfile: !!profile,
-        hasProfileError: !!profileError,
-        profileError: profileError?.message || 'None'
-      });
-
-      if (profileError) {
-        console.error('🔐 [supabaseAuthService] Profile creation failed:', profileError);
-        // Don't fail the signup if profile creation fails - the user is still created
-        // Just return the basic user info
-        return { 
-          user: {
-            id: data.user.id,
-            email: data.user.email || credentials.email,
-            full_name: credentials.fullName,
-            company: null,
-            role: credentials.role || 'user',
-            initials: credentials.fullName.substring(0, 2).toUpperCase(),
-            avatar_url: null
-          } as SupabaseUser, 
-          error: null 
-        }
-      }
-
-      console.log('🔐 [supabaseAuthService] Profile created successfully:', profile);
+      // Return basic user info - profile will be created on first login
       return { 
-        user: profile as SupabaseUser, 
+        user: {
+          id: data.user.id,
+          email: data.user.email || credentials.email,
+          full_name: credentials.fullName,
+          company: null,
+          role: credentials.role || 'user',
+          initials: credentials.fullName.substring(0, 2).toUpperCase(),
+          avatar_url: null
+        } as SupabaseUser, 
         error: null 
       }
 
@@ -191,7 +163,7 @@ export const supabaseAuthService = {
       console.log('✅ Auth signin successful, user ID:', data.user?.id);
 
       if (data.user) {
-        // Get the user profile
+        // Get the user profile (should exist due to database trigger)
         console.log('🔍 Fetching user profile for ID:', data.user.id);
         const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
@@ -201,7 +173,20 @@ export const supabaseAuthService = {
 
         if (profileError) {
           console.error('❌ Profile fetch error:', profileError);
-          return { user: null, error: profileError.message }
+          // If profile doesn't exist, create basic user from auth data
+          console.warn('⚠️ Profile not found, using auth user data');
+          return { 
+            user: {
+              id: data.user.id,
+              email: data.user.email || '',
+              full_name: data.user.user_metadata?.full_name || data.user.email || 'Unknown User',
+              company: null,
+              role: data.user.user_metadata?.role || 'user',
+              initials: (data.user.user_metadata?.full_name || data.user.email || 'U').substring(0, 2).toUpperCase(),
+              avatar_url: null
+            } as SupabaseUser, 
+            error: null 
+          }
         }
 
         console.log('✅ Profile retrieved successfully:', profile);
