@@ -128,22 +128,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signUp = async (credentials: SignUpCredentials): Promise<boolean> => {
+    console.log('🔐 [AuthContext] Starting signUp process');
+    console.log('🔐 [AuthContext] Credentials:', { ...credentials, password: '[HIDDEN]' });
+    
     setIsLoading(true);
     try {
+      console.log('🔐 [AuthContext] Calling supabaseAuthService.signUp...');
       const { user: supabaseUser, error } = await supabaseAuthService.signUp(credentials);
+      
+      console.log('🔐 [AuthContext] supabaseAuthService.signUp result:', { 
+        user: supabaseUser ? '✅ User created' : '❌ No user', 
+        error: error || 'None' 
+      });
+      
       if (supabaseUser && !error) {
+        console.log('🔐 [AuthContext] Converting SupabaseUser to User type...');
         const convertedUser = convertSupabaseUser(supabaseUser);
+        console.log('🔐 [AuthContext] Converted user:', convertedUser);
+        
         setUser(convertedUser);
         setIsAuthenticated(true);
+        console.log('🔐 [AuthContext] SignUp successful - user state updated');
         return true;
       }
-      console.error('Sign up error:', error);
+      
+      console.error('🔐 [AuthContext] SignUp failed:', error);
       return false;
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('🔐 [AuthContext] SignUp catch error:', error);
       return false;
     } finally {
       setIsLoading(false);
+      console.log('🔐 [AuthContext] SignUp process completed');
     }
   };
 

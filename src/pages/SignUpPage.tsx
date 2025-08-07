@@ -21,24 +21,40 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [debugInfo, setDebugInfo] = useState("");
+  const [signupLogs, setSignupLogs] = useState<string[]>([]);
+
+  const addLog = (message: string) => {
+    console.log(`🔍 [SignUpPage] ${message}`);
+    setSignupLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSignupLogs([]);
+    
+    addLog("=== Starting signup process ===");
+    addLog(`Form data: ${JSON.stringify({ ...formData, password: '[HIDDEN]' })}`);
 
     // Validation
+    addLog("Validating form data...");
     if (formData.password !== formData.confirmPassword) {
+      addLog("❌ Password confirmation mismatch");
       setError("Passwords do not match");
       return;
     }
 
     if (formData.password.length < 6) {
+      addLog("❌ Password too short");
       setError("Password must be at least 6 characters long");
       return;
     }
 
+    addLog("✅ Form validation passed");
+
     setIsLoading(true);
     try {
+      addLog("Calling signUp function from AuthContext...");
       const success = await signUp({
         email: formData.email,
         password: formData.password,
@@ -46,15 +62,21 @@ export default function SignUpPage() {
         role: formData.role
       });
 
+      addLog(`SignUp function returned: ${success}`);
+
       if (success) {
+        addLog("✅ Signup successful, navigating to dashboard");
         navigate("/dashboard");
       } else {
+        addLog("❌ Signup failed");
         setError("Failed to create account. Please check the console for details and try again.");
       }
     } catch (error) {
+      addLog(`❌ Signup error caught: ${error}`);
       setError("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
+      addLog("=== Signup process completed ===");
     }
   };
 
@@ -68,14 +90,14 @@ export default function SignUpPage() {
 
   const runDebugTests = async () => {
     setDebugInfo("Running debug tests...");
-    console.log("🔍 Running debug tests...");
+    addLog("🔍 Running debug tests...");
     
     const connectionTest = await testSupabaseConnection();
     const triggerTest = await testTriggerCreation();
     
     const results = `Connection: ${connectionTest ? '✅' : '❌'}, Trigger: ${triggerTest ? '✅' : '❌'}`;
     setDebugInfo(results);
-    console.log("🔍 Debug test results:", results);
+    addLog(`Debug test results: ${results}`);
   };
 
   return (
@@ -307,6 +329,20 @@ export default function SignUpPage() {
               </div>
             )}
           </div>
+
+          {/* Signup Logs */}
+          {signupLogs.length > 0 && (
+            <div className={`mt-4 p-3 rounded-md border text-xs ${
+              isDarkMode ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-gray-100 border-gray-300 text-gray-700"
+            }`}>
+              <div className="font-semibold mb-2">Signup Process Logs:</div>
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {signupLogs.map((log, index) => (
+                  <div key={index} className="font-mono">{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>

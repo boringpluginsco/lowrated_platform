@@ -12,108 +12,159 @@ export interface SupabaseUser {
 }
 
 export const supabaseAuthService = {
+  // Helper function for clean signup with profile creation
+  signUpWithProfile: async (
+    email: string, 
+    password: string, 
+    fullName: string, 
+    role: 'admin' | 'user' | 'viewer' = 'user'
+  ): Promise<{ success: boolean; user?: SupabaseUser; message?: string }> => {
+    try {
+      console.log('🔐 [supabaseAuthService] Starting signUpWithProfile for:', email);
+      
+      // Step 1: Create the user in auth.users
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password 
+      });
+
+      if (error) {
+        console.error('🔐 [supabaseAuthService] Auth signup error:', error);
+        return { success: false, message: error.message };
+      }
+
+      if (!data?.user) {
+        console.error('🔐 [supabaseAuthService] No user returned from signup');
+        return { success: false, message: 'Sign up successful but user not found' };
+      }
+
+      console.log('🔐 [supabaseAuthService] User created successfully:', data.user.id);
+
+      // Step 2: Create the user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: data.user.id,
+          full_name: fullName,
+          role: role,
+          initials: fullName.substring(0, 2).toUpperCase()
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('🔐 [supabaseAuthService] Profile creation failed:', profileError);
+        // Return basic user info even if profile creation fails
+        return { 
+          success: true, 
+          user: {
+            id: data.user.id,
+            email: data.user.email || email,
+            full_name: fullName,
+            company: null,
+            role: role,
+            initials: fullName.substring(0, 2).toUpperCase(),
+            avatar_url: null
+          } as SupabaseUser
+        };
+      }
+
+      console.log('🔐 [supabaseAuthService] Profile created successfully');
+      return { success: true, user: profile as SupabaseUser };
+
+    } catch (error) {
+      console.error('🔐 [supabaseAuthService] signUpWithProfile error:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'An error occurred during sign up' 
+      };
+    }
+  },
+
   // Sign up with email and password
   signUp: async (credentials: SignUpCredentials): Promise<{ user: SupabaseUser | null; error: string | null }> => {
     try {
-      console.log('Starting signup process for:', credentials.email);
-      console.log('Password length during signup:', credentials.password.length);
+      console.log('🔐 [supabaseAuthService] Starting signup process for:', credentials.email);
+      console.log('🔐 [supabaseAuthService] Password length during signup:', credentials.password.length);
+      console.log('🔐 [supabaseAuthService] Full name:', credentials.fullName);
+      console.log('🔐 [supabaseAuthService] Role:', credentials.role);
       
+      // Step 1: Create the user in auth.users (no metadata injection)
+      console.log('🔐 [supabaseAuthService] Calling supabase.auth.signUp...');
       const { data, error } = await supabase.auth.signUp({
         email: credentials.email,
         password: credentials.password,
         options: {
-          data: {
-            full_name: credentials.fullName,
-            role: credentials.role || 'user'
-          },
           emailRedirectTo: `${window.location.origin}/login`
         }
       })
 
+      console.log('🔐 [supabaseAuthService] supabase.auth.signUp response:', {
+        hasData: !!data,
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        hasError: !!error,
+        errorMessage: error?.message || 'None',
+        userConfirmed: data?.user?.email_confirmed_at ? 'Yes' : 'No'
+      });
+
       if (error) {
-        console.error('Supabase auth signup error:', error);
+        console.error('🔐 [supabaseAuthService] Supabase auth signup error:', error);
         return { user: null, error: error.message }
       }
 
-      console.log('Auth signup successful, user ID:', data.user?.id);
-      console.log('Auth signup session:', data.session);
-      console.log('Auth signup user confirmed:', data.user?.email_confirmed_at);
-
-      // If we have a session, the user is already signed in
-      if (data.session) {
-        console.log('User is already signed in with session');
+      if (!data?.user) {
+        console.error('🔐 [supabaseAuthService] No user returned from signup');
+        return { user: null, error: 'Sign up successful but user not found' }
       }
 
-      if (data.user) {
-        // Wait a moment for the trigger to create the profile
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Get the user profile
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single()
+      console.log('🔐 [supabaseAuthService] Auth signup successful, user ID:', data.user.id);
 
-        if (profileError) {
-          console.log('Profile fetch error, attempting manual creation...');
-          
-          // Try to create the profile manually using RPC to bypass RLS
-          const { data: newProfile, error: createError } = await supabase.rpc('create_user_profile', {
-            user_id: data.user.id,
-            user_email: data.user.email || credentials.email,
-            user_full_name: credentials.fullName,
-            user_role: credentials.role || 'user',
-            user_initials: credentials.fullName.substring(0, 2).toUpperCase()
-          })
+      // Step 2: Manually create the user profile
+      console.log('🔐 [supabaseAuthService] Creating user profile manually...');
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: data.user.id,
+          full_name: credentials.fullName,
+          role: credentials.role || 'user',
+          initials: credentials.fullName.substring(0, 2).toUpperCase()
+        })
+        .select()
+        .single()
 
-          if (createError) {
-            console.error('Manual profile creation failed:', createError);
-            return { user: null, error: `Failed to create user profile: ${createError.message}` }
-          }
+      console.log('🔐 [supabaseAuthService] Profile creation result:', {
+        hasProfile: !!profile,
+        hasProfileError: !!profileError,
+        profileError: profileError?.message || 'None'
+      });
 
-          console.log('Manual profile creation successful:', newProfile);
-          return { 
-            user: newProfile as SupabaseUser, 
-            error: null 
-          }
-        }
-
-        if (!profile) {
-          console.log('No profile found, attempting manual creation...');
-          
-          // Try to create the profile manually using RPC to bypass RLS
-          const { data: newProfile, error: createError } = await supabase.rpc('create_user_profile', {
-            user_id: data.user.id,
-            user_email: data.user.email || credentials.email,
-            user_full_name: credentials.fullName,
-            user_role: credentials.role || 'user',
-            user_initials: credentials.fullName.substring(0, 2).toUpperCase()
-          })
-
-          if (createError) {
-            console.error('Manual profile creation failed:', createError);
-            return { user: null, error: `Failed to create user profile: ${createError.message}` }
-          }
-
-          console.log('Manual profile creation successful:', newProfile);
-          return { 
-            user: newProfile as SupabaseUser, 
-            error: null 
-          }
-        }
-
-        console.log('Profile retrieved successfully:', profile);
+      if (profileError) {
+        console.error('🔐 [supabaseAuthService] Profile creation failed:', profileError);
+        // Don't fail the signup if profile creation fails - the user is still created
+        // Just return the basic user info
         return { 
-          user: profile as SupabaseUser, 
+          user: {
+            id: data.user.id,
+            email: data.user.email || credentials.email,
+            full_name: credentials.fullName,
+            company: null,
+            role: credentials.role || 'user',
+            initials: credentials.fullName.substring(0, 2).toUpperCase(),
+            avatar_url: null
+          } as SupabaseUser, 
           error: null 
         }
       }
 
-      console.error('No user returned from signup');
-      return { user: null, error: 'Sign up successful but user not found' }
+      console.log('🔐 [supabaseAuthService] Profile created successfully:', profile);
+      return { 
+        user: profile as SupabaseUser, 
+        error: null 
+      }
+
     } catch (error) {
-      console.error('Signup catch error:', error);
+      console.error('🔐 [supabaseAuthService] Signup catch error:', error);
       return { 
         user: null, 
         error: error instanceof Error ? error.message : 'An error occurred during sign up' 

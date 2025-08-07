@@ -5,28 +5,43 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Check if we're in development and provide fallback
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables. Using fallback configuration.')
+  console.warn('❌ Missing Supabase environment variables. Using fallback configuration.')
   console.warn('To use Supabase features, please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file')
+} else {
+  console.log('✅ Supabase environment variables found')
 }
 
 console.log('🔧 Supabase configuration:', {
   url: supabaseUrl ? '✅ Set' : '❌ Missing',
   key: supabaseAnonKey ? '✅ Set' : '❌ Missing',
-  keyLength: supabaseAnonKey?.length || 0
+  keyLength: supabaseAnonKey?.length || 0,
+  urlPreview: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'None',
+  keyPreview: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'None'
 });
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    // Enable automatic session persistence
-    persistSession: true,
-    // Store session in localStorage for persistence across browser sessions
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    // Auto-refresh the session before it expires
-    autoRefreshToken: true,
-    // Detect session in URL (for email confirmations, etc.)
-    detectSessionInUrl: true
-  }
-})
+// Create client with error handling
+let supabase: ReturnType<typeof createClient<Database>>;
+try {
+  supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Enable automatic session persistence
+      persistSession: true,
+      // Store session in localStorage for persistence across browser sessions
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      // Auto-refresh the session before it expires
+      autoRefreshToken: true,
+      // Detect session in URL (for email confirmations, etc.)
+      detectSessionInUrl: true
+    }
+  })
+  console.log('✅ Supabase client created successfully')
+} catch (error) {
+  console.error('❌ Failed to create Supabase client:', error)
+  // Create a fallback client that will fail gracefully
+  supabase = createClient<Database>('https://invalid-url.supabase.co', 'invalid-key')
+}
+
+export { supabase }
 
 // Database types
 export interface Database {
