@@ -41,7 +41,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkUser = async () => {
       console.log('🔐 AuthContext: Checking for existing session');
       try {
-        const { user: supabaseUser, error } = await supabaseAuthService.getCurrentUser();
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000);
+        });
+        
+        const userPromise = supabaseAuthService.getCurrentUser();
+        const { user: supabaseUser, error } = await Promise.race([userPromise, timeoutPromise]) as any;
+        
         console.log('🔐 AuthContext: getCurrentUser result:', { user: supabaseUser, error });
         
         if (isMounted) {
@@ -66,7 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Set up auth state listener (only once)
     if (!authListenerRef.current) {
       console.log('🔐 AuthContext: Setting up auth state listener');
-      const authStateChange = supabaseAuthService.onAuthStateChange((supabaseUser) => {
+      const authStateChange = supabaseAuthService.onAuthStateChange(async (supabaseUser) => {
         console.log('🔐 AuthContext: Auth state change received:', supabaseUser ? 'user' : 'null');
         if (isMounted) {
           if (supabaseUser) {

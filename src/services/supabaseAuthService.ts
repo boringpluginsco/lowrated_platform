@@ -232,18 +232,39 @@ export const supabaseAuthService = {
 
       console.log('🔐 Found authenticated user:', user.id);
 
-      // Get the user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      // Try to get the user profile with a timeout
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-      if (profileError) {
-        console.error('❌ Error fetching user profile:', profileError);
-        // If we can't fetch the profile but the user is authenticated, 
-        // create a basic user object from the auth user data
-        console.warn('⚠️ Profile fetch failed, creating basic user from auth data');
+        if (profileError) {
+          console.warn('⚠️ Profile fetch failed, using auth user data:', profileError.message);
+          // Return basic user from auth data
+          return { 
+            user: {
+              id: user.id,
+              email: user.email || '',
+              full_name: user.user_metadata?.full_name || user.email || '',
+              company: null,
+              role: user.user_metadata?.role || 'user',
+              initials: user.user_metadata?.full_name?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || 'U',
+              avatar_url: null
+            } as SupabaseUser, 
+            error: null 
+          }
+        }
+
+        console.log('✅ User profile retrieved:', profile);
+        return { 
+          user: profile as SupabaseUser, 
+          error: null 
+        }
+      } catch (profileError) {
+        console.warn('⚠️ Profile fetch failed with exception, using auth user data');
+        // Return basic user from auth data
         return { 
           user: {
             id: user.id,
@@ -256,12 +277,6 @@ export const supabaseAuthService = {
           } as SupabaseUser, 
           error: null 
         }
-      }
-
-      console.log('✅ User profile retrieved:', profile);
-      return { 
-        user: profile as SupabaseUser, 
-        error: null 
       }
     } catch (error) {
       console.error('❌ Error in getCurrentUser:', error);
