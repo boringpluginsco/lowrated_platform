@@ -219,39 +219,41 @@ export const supabaseAuthService = {
     }
   },
 
-  // Get current user (TEMPORARY SIMPLIFIED VERSION)
+  // Get current user quickly using session, avoid network hangs
   getCurrentUser: async (): Promise<{ user: SupabaseUser | null; error: string | null }> => {
     try {
-      console.log('🔐 Getting current user from Supabase auth');
-      const { data: { user }, error } = await supabase.auth.getUser()
+      console.log('🔐 Getting current session from Supabase');
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      if (error || !user) {
-        console.log('🔐 No authenticated user found:', error?.message || 'No user found');
-        return { user: null, error: error?.message || 'No user found' }
+      if (sessionError) {
+        console.warn('🔐 getSession error:', sessionError.message);
       }
 
-      console.log('🔐 Found authenticated user:', user.id);
-
-      // TEMPORARY: Skip profile fetch to test if that's causing the timeout
-      console.log('🔐 TEMPORARY: Skipping profile fetch, using auth user data');
-      return { 
-        user: {
-          id: user.id,
-          email: user.email || '',
-          full_name: user.user_metadata?.full_name || user.email || '',
-          company: null,
-          role: user.user_metadata?.role || 'user',
-          initials: user.user_metadata?.full_name?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || 'U',
-          avatar_url: null
-        } as SupabaseUser, 
-        error: null 
+      const sessionUser = sessionData?.session?.user;
+      if (!sessionUser) {
+        console.log('🔐 No authenticated session found');
+        return { user: null, error: 'No user found' };
       }
+
+      console.log('🔐 Found authenticated session user:', sessionUser.id);
+      // Return a fast fallback user derived from the session
+      const fastUser: SupabaseUser = {
+        id: sessionUser.id,
+        email: sessionUser.email || '',
+        full_name: sessionUser.user_metadata?.full_name || sessionUser.email || '',
+        company: null,
+        role: sessionUser.user_metadata?.role || 'user',
+        initials: (sessionUser.user_metadata?.full_name || sessionUser.email || 'U').substring(0, 2).toUpperCase(),
+        avatar_url: null
+      };
+
+      return { user: fastUser, error: null };
     } catch (error) {
       console.error('❌ Error in getCurrentUser:', error);
-      return { 
-        user: null, 
-        error: error instanceof Error ? error.message : 'An error occurred getting current user' 
-      }
+      return {
+        user: null,
+        error: error instanceof Error ? error.message : 'An error occurred getting current user'
+      };
     }
   },
 
@@ -327,44 +329,47 @@ export const supabaseAuthService = {
       
       if (event === 'SIGNED_IN' && session?.user) {
         console.log('🔐 User signed in, fetching profile for:', session.user.id);
-        
+        // Immediately provide a fast fallback user so UI can proceed
+        const immediateUser: SupabaseUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || session.user.email || 'Unknown User',
+          company: null,
+          role: session.user.user_metadata?.role || 'user',
+          initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 2).toUpperCase(),
+          avatar_url: null
+        };
+        callback(immediateUser);
+
+        // Helper to add timeout to profile fetch
+        const withTimeout = function(promise: PromiseLike<any>, ms: number) {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), ms))
+          ]);
+        };
+
         try {
           // Get the user profile
-          const { data: profile, error } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          const { data: profile, error } = await withTimeout(
+            supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single(),
+            4000
+          ) as any;
 
           if (error) {
             console.error('❌ Error fetching profile in auth state change:', error);
-            // Fall back to auth user to avoid blocking login
-            const fallbackUser: SupabaseUser = {
-              id: session.user.id,
-              email: session.user.email || '',
-              full_name: session.user.user_metadata?.full_name || session.user.email || 'Unknown User',
-              company: null,
-              role: session.user.user_metadata?.role || 'user',
-              initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 2).toUpperCase(),
-              avatar_url: null
-            };
-            callback(fallbackUser);
+            // We already called back with immediate user; keep UI as is
           } else {
             console.log('✅ Profile fetched in auth state change:', profile);
             callback(profile as SupabaseUser);
           }
         } catch (error) {
           console.error('❌ Error in auth state change profile fetch:', error);
-          const fallbackUser: SupabaseUser = {
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: session.user.user_metadata?.full_name || session.user.email || 'Unknown User',
-            company: null,
-            role: session.user.user_metadata?.role || 'user',
-            initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 2).toUpperCase(),
-            avatar_url: null
-          };
-          callback(fallbackUser);
+          // Keep the immediate user; no further action needed
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('🔐 User signed out');
