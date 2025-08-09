@@ -23,6 +23,10 @@ console.log('🔧 Supabase configuration:', {
   keyPreview: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'None'
 });
 
+// TEMPORARY: Log the full URL to see which project we're using
+console.log('🔧 FULL SUPABASE URL:', supabaseUrl);
+console.log('🔧 PRODUCTION DEBUG: Which Supabase project is this?');
+
 // Create client with error handling
 let supabase: SupabaseClient;
 try {

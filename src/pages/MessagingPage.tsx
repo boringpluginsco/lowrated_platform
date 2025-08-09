@@ -101,6 +101,15 @@ I noticed your business <<business_name>> has a rating of <<rating>> on Google. 
 Best regards,
 Jordan`,
   });
+  const [isSendingCampaign, setIsSendingCampaign] = useState(false);
+  const [campaignProgress, setCampaignProgress] = useState<{
+    current: number;
+    total: number;
+    status: 'idle' | 'sending' | 'completed' | 'error';
+    results?: any[];
+  }>({ current: 0, total: 0, status: 'idle' });
+  const [editableEmails, setEditableEmails] = useState<Record<string, string>>({});
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [hoveredBusiness, setHoveredBusiness] = useState<
     (typeof filteredBusinesses)[0] | null
   >(null);
@@ -113,9 +122,11 @@ Jordan`,
   ): string => {
     if (!business) return text;
 
-    // Get email for this business
+    // Get email for this business - use editable email if available, otherwise fallback to original logic
     let email;
-    if (business.email_1) {
+    if (editableEmails[business.id]) {
+      email = editableEmails[business.id];
+    } else if (business.email_1) {
       email = business.email_1;
     } else if (business.domain) {
       const cleanDomain = business.domain
@@ -433,6 +444,173 @@ Jordan`,
   // Manual sync button handler
   const handleSyncEmails = () => {
     syncInboundEmails();
+  };
+
+  // Handle email editing
+  const handleEmailEdit = (businessId: string, email: string) => {
+    setEditableEmails(prev => ({
+      ...prev,
+      [businessId]: email
+    }));
+    setEditingEmailId(businessId);
+  };
+
+  const handleEmailSave = (businessId: string) => {
+    setEditingEmailId(null);
+  };
+
+  const handleEmailCancel = (businessId: string) => {
+    setEditableEmails(prev => {
+      const newEmails = { ...prev };
+      delete newEmails[businessId];
+      return newEmails;
+    });
+    setEditingEmailId(null);
+  };
+
+  const handleEmailChange = (businessId: string, newEmail: string) => {
+    setEditableEmails(prev => ({
+      ...prev,
+      [businessId]: newEmail
+    }));
+  };
+
+  // Handle mail merge campaign sending
+  const handleSendCampaign = async () => {
+    if (filteredBusinesses.length === 0) {
+      alert('No recipients selected for the campaign');
+      return;
+    }
+
+    if (!mailMergeForm.subject.trim() || !mailMergeForm.body.trim()) {
+      alert('Please fill in both subject and body for the campaign');
+      return;
+    }
+
+    // Confirm before sending
+    const confirmed = window.confirm(
+      `Are you sure you want to send this campaign to ${filteredBusinesses.length} recipients?\n\nThis will send personalized emails with a 3-second delay between each.`
+    );
+
+    if (!confirmed) return;
+
+    setIsSendingCampaign(true);
+    setCampaignProgress({
+      current: 0,
+      total: filteredBusinesses.length,
+      status: 'sending'
+    });
+
+    try {
+      // Prepare recipients data
+      const recipients = filteredBusinesses.map(business => {
+        // Get email for this business - use editable email if available, otherwise fallback to original logic
+        let email;
+        if (editableEmails[business.id]) {
+          email = editableEmails[business.id];
+        } else if (business.email_1) {
+          email = business.email_1;
+        } else if (business.domain && business.domain !== '-') {
+          const cleanDomain = business.domain
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .replace(/\/$/, '');
+          email = `info@${cleanDomain}`;
+        } else {
+          email = `contact@${business.name.toLowerCase().replace(/\s+/g, '')}.com`;
+        }
+
+        return {
+          email,
+          business
+        };
+      });
+
+      console.log('🚀 Starting mail merge campaign with recipients:', recipients);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/send-bulk-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipients,
+          template: {
+            subject: mailMergeForm.subject,
+            body: mailMergeForm.body
+          },
+          from: mailMergeForm.from,
+          fromName: 'Jordan'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('✅ Campaign completed successfully:', result);
+        setCampaignProgress({
+          current: result.summary.total,
+          total: result.summary.total,
+          status: 'completed',
+          results: result.results
+        });
+
+        // Show success message
+        alert(`Campaign completed!\n\n✅ Successful: ${result.summary.successful}\n❌ Failed: ${result.summary.failed}\n\nCheck the console for detailed results.`);
+
+        // Add sent emails to email threads
+        const successfulEmails = result.results.filter((r: any) => r.success);
+        setEmailThreads((prev) => {
+          const updated = [...prev];
+          
+          successfulEmails.forEach((emailResult: any) => {
+            const businessId = emailResult.businessName;
+            const newEmail = {
+              id: emailResult.messageId || Date.now().toString(),
+              from: mailMergeForm.from,
+              to: emailResult.recipient,
+              subject: emailResult.subject,
+              body: mailMergeForm.body, // Use original template body
+              timestamp: new Date(),
+              direction: 'sent' as const,
+            };
+
+            const existingThreadIndex = updated.findIndex(thread => thread.businessId === businessId);
+            if (existingThreadIndex >= 0) {
+              updated[existingThreadIndex].emails.push(newEmail);
+            } else {
+              updated.push({
+                businessId,
+                emails: [newEmail]
+              });
+            }
+          });
+
+          saveEmailThreads(updated);
+          return updated;
+        });
+
+      } else {
+        console.error('❌ Campaign failed:', result);
+        setCampaignProgress({
+          current: 0,
+          total: filteredBusinesses.length,
+          status: 'error'
+        });
+        alert(`Campaign failed: ${result.error}`);
+      }
+
+    } catch (error) {
+      console.error('❌ Error sending campaign:', error);
+      setCampaignProgress({
+        current: 0,
+        total: filteredBusinesses.length,
+        status: 'error'
+      });
+      alert(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSendingCampaign(false);
+    }
   };
 
   // Drag and drop handlers
@@ -2048,14 +2226,92 @@ Jordan`,
                     </span>
                   </div>
                   <button
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                    onClick={() => {
-                      /* TODO: Launch campaign */
-                    }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                      isSendingCampaign
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                    onClick={handleSendCampaign}
+                    disabled={isSendingCampaign}
                   >
-                    Send Campaign
+                    {isSendingCampaign ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Sending... ({campaignProgress.current}/{campaignProgress.total})
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                          <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                        Send Campaign
+                      </>
+                    )}
                   </button>
                 </div>
+
+                {/* Campaign Progress Indicator */}
+                {isSendingCampaign && (
+                  <div className={`px-4 py-3 border-b ${
+                    isDarkMode ? "border-gray-600 bg-gray-800" : "border-gray-200 bg-gray-50"
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                        <span className={`text-sm font-medium ${
+                          isDarkMode ? "text-text-primary" : "text-gray-900"
+                        }`}>
+                          Sending campaign emails...
+                        </span>
+                      </div>
+                      <div className={`text-sm ${
+                        isDarkMode ? "text-text-secondary" : "text-gray-600"
+                      }`}>
+                        {campaignProgress.current} of {campaignProgress.total} sent
+                      </div>
+                    </div>
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(campaignProgress.current / campaignProgress.total) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campaign Results */}
+                {campaignProgress.status === 'completed' && campaignProgress.results && (
+                  <div className={`px-4 py-3 border-b ${
+                    isDarkMode ? "border-gray-600 bg-green-900/20" : "border-gray-200 bg-green-50"
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-green-500">
+                          <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                        <span className={`text-sm font-medium ${
+                          isDarkMode ? "text-green-400" : "text-green-700"
+                        }`}>
+                          Campaign completed successfully!
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setCampaignProgress({ current: 0, total: 0, status: 'idle' })}
+                        className={`text-xs px-2 py-1 rounded ${
+                          isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-600 hover:text-gray-800"
+                        }`}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div className={`text-xs mt-1 ${
+                      isDarkMode ? "text-green-300" : "text-green-600"
+                    }`}>
+                      {campaignProgress.results.filter((r: any) => r.success).length} successful, {campaignProgress.results.filter((r: any) => !r.success).length} failed
+                    </div>
+                  </div>
+                )}
 
                 {/* MailMerge Content */}
                 <div className="flex-1 overflow-y-auto p-4">
@@ -2159,7 +2415,71 @@ Jordan`,
                                 {business.name}
                               </div>
                               <div className="text-blue-600 hover:text-blue-700 cursor-pointer">
-                                {email}
+                                {editingEmailId === business.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="email"
+                                      value={editableEmails[business.id] || email}
+                                      onChange={(e) => handleEmailChange(business.id, e.target.value)}
+                                      className={`flex-1 px-2 py-1 text-sm border rounded ${
+                                        isDarkMode 
+                                          ? 'bg-gray-700 border-gray-600 text-white' 
+                                          : 'bg-white border-gray-300 text-gray-900'
+                                      }`}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleEmailSave(business.id);
+                                        } else if (e.key === 'Escape') {
+                                          handleEmailCancel(business.id);
+                                        }
+                                      }}
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => handleEmailSave(business.id)}
+                                      className={`p-1 rounded ${
+                                        isDarkMode 
+                                          ? 'text-green-400 hover:text-green-300' 
+                                          : 'text-green-600 hover:text-green-700'
+                                      }`}
+                                    >
+                                      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleEmailCancel(business.id)}
+                                      className={`p-1 rounded ${
+                                        isDarkMode 
+                                          ? 'text-red-400 hover:text-red-300' 
+                                          : 'text-red-600 hover:text-red-700'
+                                      }`}
+                                    >
+                                      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    onClick={() => handleEmailEdit(business.id, email)}
+                                    className="flex items-center gap-2 group"
+                                  >
+                                    <span className="group-hover:underline">{editableEmails[business.id] || email}</span>
+                                    <svg 
+                                      width="12" 
+                                      height="12" 
+                                      fill="none" 
+                                      stroke="currentColor" 
+                                      strokeWidth="2" 
+                                      viewBox="0 0 24 24"
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                    </svg>
+                                  </div>
+                                )}
                               </div>
                               <div>{contactName}</div>
                               <div className="flex items-center gap-1">

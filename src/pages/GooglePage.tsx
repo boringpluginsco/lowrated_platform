@@ -178,12 +178,13 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
       </div>
 
       {/* Category dropdown and controls */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-semibold text-text-secondary uppercase tracking-widest">Category</label>
+      <div className="flex items-center gap-4 flex-wrap">
+        {/* Left side filters */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <label className="text-sm font-semibold text-text-secondary uppercase tracking-widest whitespace-nowrap">Category</label>
           <div className="relative">
             <select
-              className={`w-48 pl-3 pr-8 py-1 text-sm border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent appearance-none ${
+              className={`w-40 pl-3 pr-8 py-1 text-sm border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent appearance-none ${
                 isDarkMode 
                   ? 'border-gray-400 bg-[#181B26] text-text-primary' 
                   : 'border-gray-400 bg-white text-gray-900'
@@ -202,7 +203,7 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
             </div>
           </div>
           {/* Visual-only Country dropdown */}
-          <div className="relative w-48">
+          <div className="relative w-40">
             <select className={`w-full pl-3 pr-8 py-1 text-sm border rounded-md font-mono focus:outline-none appearance-none ${
               isDarkMode 
                 ? 'border-gray-400 bg-[#181B26] text-text-secondary' 
@@ -217,7 +218,7 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
             </div>
           </div>
           {/* Visual-only City or town dropdown */}
-          <div className="relative w-48">
+          <div className="relative w-40">
             <select className={`w-full pl-3 pr-8 py-1 text-sm border rounded-md font-mono focus:outline-none appearance-none ${
               isDarkMode 
                 ? 'border-gray-400 bg-[#181B26] text-text-secondary' 
@@ -231,29 +232,29 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
               </svg>
             </div>
           </div>
-          {loading && <span className="text-xs text-accent font-semibold ml-4 animate-pulse">Loading…</span>}
+          {loading && <span className="text-xs text-accent font-semibold animate-pulse whitespace-nowrap">Loading…</span>}
         </div>
 
         {/* Right side controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
           <input
             type="text"
             placeholder="Search Business"
-            className={`w-64 pl-3 pr-3 py-1 text-sm border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent ${
+            className={`w-48 pl-3 pr-3 py-1 text-sm border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent ${
               isDarkMode 
                 ? 'border-gray-400 bg-[#181B26] text-text-primary placeholder-text-secondary' 
                 : 'border-gray-400 bg-white text-gray-900 placeholder-gray-500'
             }`}
           />
-          <button className="flex items-center justify-center w-10 h-10 bg-[#4FF5AC] rounded-md hover:bg-[#3FE59C] transition-colors">
+          <button className="flex items-center justify-center w-10 h-10 bg-[#4FF5AC] rounded-md hover:bg-[#3FE59C] transition-colors flex-shrink-0">
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button 
               onClick={() => setIsCsvImportModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 transition-colors font-mono text-sm"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 transition-colors font-mono text-sm whitespace-nowrap"
             >
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -264,7 +265,7 @@ export default function GooglePage({ businesses, onToggleStar, categories, selec
             </button>
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-md hover:bg-accent/80 transition-colors font-mono text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-md hover:bg-accent/80 transition-colors font-mono text-sm whitespace-nowrap"
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M12 5v14M5 12h14"/>

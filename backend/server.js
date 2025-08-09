@@ -158,6 +158,160 @@ app.post('/api/send-email', async (req, res) => {
   }
 });
 
+// Bulk email (mail merge) endpoint
+app.post('/api/send-bulk-email', async (req, res) => {
+  try {
+    const { recipients, template, from, fromName } = req.body;
+
+    // Validation
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Recipients array is required and must not be empty'
+      });
+    }
+
+    if (!template || !template.subject || !template.body) {
+      return res.status(400).json({
+        success: false,
+        error: 'Template with subject and body is required'
+      });
+    }
+
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Ensure we always use verified domain for sending
+    const fromEmail = process.env.FROM_EMAIL || 'jordan@galleongroup.co';
+    const senderName = fromName || 'Jordan';
+
+    const results = [];
+    const resend = getResendClient();
+
+    // Process recipients sequentially with 3-second delay
+    for (let i = 0; i < recipients.length; i++) {
+      const recipient = recipients[i];
+      
+      try {
+        // Validate recipient email
+        if (!recipient.email || !emailRegex.test(recipient.email)) {
+          results.push({
+            success: false,
+            recipient: recipient.email,
+            businessName: recipient.business?.name || 'Unknown',
+            error: 'Invalid email address format'
+          });
+          continue;
+        }
+
+        // Replace placeholders in template
+        const personalizedSubject = replacePlaceholders(template.subject, recipient.business);
+        const personalizedBody = replacePlaceholders(template.body, recipient.business);
+
+        const emailData = {
+          from: `${senderName} <${fromEmail}>`,
+          to: recipient.email,
+          subject: personalizedSubject,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <div style="background-color: white; padding: 20px; border-radius: 4px; line-height: 1.6;">
+                  ${personalizedBody.replace(/\n/g, '<br>')}
+                </div>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #6c757d;">
+                  <p>Sent from B2B Business Directory platform</p>
+                </div>
+              </div>
+            </div>
+          `,
+          text: personalizedBody
+        };
+
+        console.log(`📧 Sending email ${i + 1}/${recipients.length} to ${recipient.email} (${recipient.business?.name})`);
+        
+        const response = await resend.emails.send(emailData);
+        
+        results.push({
+          success: true,
+          recipient: recipient.email,
+          businessName: recipient.business?.name || 'Unknown',
+          messageId: response.id,
+          subject: personalizedSubject
+        });
+
+        console.log(`✅ Email sent successfully to ${recipient.email}. Message ID: ${response.id}`);
+
+        // Add 3-second delay between emails (except for the last one)
+        if (i < recipients.length - 1) {
+          console.log(`⏳ Waiting 3 seconds before next email...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+      } catch (error) {
+        console.error(`❌ Error sending email to ${recipient.email}:`, error);
+        results.push({
+          success: false,
+          recipient: recipient.email,
+          businessName: recipient.business?.name || 'Unknown',
+          error: error.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    console.log(`📊 Mail merge campaign completed: ${successCount} successful, ${failureCount} failed`);
+
+    res.json({
+      success: true,
+      message: `Mail merge campaign completed: ${successCount} successful, ${failureCount} failed`,
+      results,
+      summary: {
+        total: recipients.length,
+        successful: successCount,
+        failed: failureCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in bulk email sending:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send bulk emails',
+      details: error.message
+    });
+  }
+});
+
+// Helper function to replace placeholders in email template
+function replacePlaceholders(text, business) {
+  if (!business) return text;
+
+  // Get email for this business
+  let email;
+  if (business.email_1) {
+    email = business.email_1;
+  } else if (business.domain && business.domain !== '-') {
+    const cleanDomain = business.domain
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/$/, '');
+    email = `info@${cleanDomain}`;
+  } else {
+    email = `contact@${business.name.toLowerCase().replace(/\s+/g, '')}.com`;
+  }
+
+  const contactName = business.name.split(' ')[0] + ' Manager';
+
+  return text
+    .replace(/<<business_name>>/g, business.name)
+    .replace(/<<contact_name>>/g, contactName)
+    .replace(/<<rating>>/g, business.rating?.toString() || '0')
+    .replace(/<<email>>/g, email);
+}
+
 // Resend diagnostics endpoint
 app.get('/api/diagnostics', async (req, res) => {
   try {
