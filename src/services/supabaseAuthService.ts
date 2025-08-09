@@ -338,17 +338,33 @@ export const supabaseAuthService = {
 
           if (error) {
             console.error('❌ Error fetching profile in auth state change:', error);
-            // Don't log out the user if profile fetch fails - they might still be authenticated
-            // Just log the error and continue
-            console.warn('⚠️ Profile fetch failed but user might still be authenticated');
+            // Fall back to auth user to avoid blocking login
+            const fallbackUser: SupabaseUser = {
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name: session.user.user_metadata?.full_name || session.user.email || 'Unknown User',
+              company: null,
+              role: session.user.user_metadata?.role || 'user',
+              initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 2).toUpperCase(),
+              avatar_url: null
+            };
+            callback(fallbackUser);
           } else {
             console.log('✅ Profile fetched in auth state change:', profile);
             callback(profile as SupabaseUser);
           }
         } catch (error) {
           console.error('❌ Error in auth state change profile fetch:', error);
-          // Don't log out the user if profile fetch fails - they might still be authenticated
-          console.warn('⚠️ Profile fetch failed but user might still be authenticated');
+          const fallbackUser: SupabaseUser = {
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || session.user.email || 'Unknown User',
+            company: null,
+            role: session.user.user_metadata?.role || 'user',
+            initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 2).toUpperCase(),
+            avatar_url: null
+          };
+          callback(fallbackUser);
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('🔐 User signed out');

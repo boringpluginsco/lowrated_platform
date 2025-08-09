@@ -41,14 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkUser = async () => {
       console.log('🔐 AuthContext: Checking for existing session');
       try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000);
-        });
-        
-        const userPromise = supabaseAuthService.getCurrentUser();
-        const { user: supabaseUser, error } = await Promise.race([userPromise, timeoutPromise]) as any;
-        
+        const { user: supabaseUser, error } = await supabaseAuthService.getCurrentUser();
         console.log('🔐 AuthContext: getCurrentUser result:', { user: supabaseUser, error });
         
         if (isMounted) {
