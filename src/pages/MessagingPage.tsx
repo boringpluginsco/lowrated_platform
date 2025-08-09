@@ -455,7 +455,7 @@ Jordan`,
     setEditingEmailId(businessId);
   };
 
-  const handleEmailSave = (businessId: string) => {
+  const handleEmailSave = () => {
     setEditingEmailId(null);
   };
 
@@ -2428,7 +2428,7 @@ Jordan`,
                                       }`}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                          handleEmailSave(business.id);
+                                          handleEmailSave();
                                         } else if (e.key === 'Escape') {
                                           handleEmailCancel(business.id);
                                         }
@@ -2436,7 +2436,7 @@ Jordan`,
                                       autoFocus
                                     />
                                     <button
-                                      onClick={() => handleEmailSave(business.id)}
+                                      onClick={handleEmailSave}
                                       className={`p-1 rounded ${
                                         isDarkMode 
                                           ? 'text-green-400 hover:text-green-300' 
