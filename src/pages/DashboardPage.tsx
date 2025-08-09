@@ -122,7 +122,7 @@ export default function DashboardPage({ businesses }: Props) {
       console.log("Sending API request with payload:", payload);
       
       // Make API call to the scraping service
-      const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/get_scraped_google_data', {
+      const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/scrape_google_data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
