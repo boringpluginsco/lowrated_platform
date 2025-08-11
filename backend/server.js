@@ -7,6 +7,8 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const OUTSCRAPER_BASE_URL = process.env.OUTSCRAPER_BASE_URL || 'https://api.outscraper.cloud';
+const OUTSCRAPER_API_KEY = process.env.OUTSCRAPER_API_KEY || process.env.OUTSCRAPER_KEY;
 
 // Middleware
 app.use(helmet());
@@ -51,6 +53,143 @@ app.use(express.json());
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Email service is running' });
+});
+
+// --- Scraper endpoints: direct Outscraper integration (no n8n) ---
+// Start scraping job -> creates a task in Outscraper
+app.post('/api/scrape/start', async (req, res) => {
+  try {
+    // Accept either an array payload like the original, or a simple object
+    const body = req.body;
+    let item;
+    if (Array.isArray(body)) {
+      item = body[0];
+    } else {
+      item = body;
+    }
+
+    const location = item?.location;
+    const category = item?.category;
+    const limit = Number(item?.limit) || 3;
+
+    if (!location || !category) {
+      return res.status(400).json({ success: false, error: 'location and category are required' });
+    }
+
+    if (!OUTSCRAPER_API_KEY) {
+      return res.status(500).json({ success: false, error: 'OUTSCRAPER_API_KEY is not set on the server' });
+    }
+
+    // Build payload matching n8n "Code" node
+    const taskPayload = {
+      service_name: 'google_maps_service_v2',
+      queries: [],
+      enrich: false,
+      settings: {
+        output_extension: 'xlsx',
+        output_columns: []
+      },
+      tags: [category],
+      enrichments: [
+        'domains_service',
+        'company_insights_service',
+        'emails_validator_service',
+        'phones_enricher_service',
+        'whitepages_phones'
+      ],
+      categories: [category],
+      locations: [location],
+      language: 'en',
+      region: String(location).split('>')[0],
+      limit: limit,
+      organizationsPerQueryLimit: 500,
+      filters: [
+        {
+          key: 'rating',
+          operator: 'contains one of',
+          value: ['1.', '2.', '3.'],
+          labelKey: 'title.badRating'
+        }
+      ],
+      exactMatch: false,
+      useZipCodes: true,
+      dropDuplicates: true,
+      dropEmailDuplicates: false,
+      ignoreWithoutEmails: false,
+      UISettings: {
+        isCustomQueries: false,
+        isCustomCategories: false,
+        isCustomLocations: false
+      },
+      enrichLocations: true
+    };
+
+    const response = await fetch(`${OUTSCRAPER_BASE_URL}/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': OUTSCRAPER_API_KEY
+      },
+      body: JSON.stringify(taskPayload)
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: `Outscraper error (${response.status})`,
+        details: data
+      });
+    }
+
+    // Outscraper returns an object with id of the task
+    const taskId = data.id || data.taskId || data.taskID || null;
+    return res.json({ success: true, taskId, raw: data });
+  } catch (error) {
+    console.error('Error starting scrape:', error);
+    return res.status(500).json({ success: false, error: 'Failed to start scrape', details: error.message });
+  }
+});
+
+// Get download URL for a taskId by querying Outscraper task status
+app.post('/api/scrape/get-download', async (req, res) => {
+  try {
+    const { taskID, taskId, task_id } = req.body || {};
+    const id = taskID || taskId || task_id;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'taskID is required' });
+    }
+
+    if (!OUTSCRAPER_API_KEY) {
+      return res.status(500).json({ success: false, error: 'OUTSCRAPER_API_KEY is not set on the server' });
+    }
+
+    const response = await fetch(`${OUTSCRAPER_BASE_URL}/tasks/${encodeURIComponent(id)}`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': OUTSCRAPER_API_KEY
+      }
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: `Outscraper error (${response.status})`,
+        details: data
+      });
+    }
+
+    // Expect results[0].file_url when ready
+    const status = data.status || data.state || data.result?.status || 'unknown';
+    const downloadURL = data.results?.[0]?.file_url || null;
+    return res.json({ success: true, status, downloadURL, raw: data });
+  } catch (error) {
+    console.error('Error getting download URL:', error);
+    return res.status(500).json({ success: false, error: 'Failed to get download URL', details: error.message });
+  }
 });
 
 // API key validation endpoint

@@ -42,7 +42,7 @@ export default function DashboardPage({ businesses }: Props) {
       try {
         console.log("Requesting download URL for taskID:", result.task_id);
         
-        const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/get_scraped_google_data', {
+      const response = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/scrape/get-download', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -90,6 +90,7 @@ export default function DashboardPage({ businesses }: Props) {
       return;
     }
     
+    let createdJob: any | null = null;
     try {
       // Get the display names for the selected location and category
       const selectedState = stateOptions.find(state => state.value === selectedLocation);
@@ -98,7 +99,7 @@ export default function DashboardPage({ businesses }: Props) {
       const displayCategory = selectedCategoryOption ? selectedCategoryOption.label : selectedCategory;
       
       // Create new scraping job in database
-      const newJob = await createScrapingJob({
+      createdJob = await createScrapingJob({
         category: selectedCategory,
         location: selectedLocation,
         number_of_leads: numberOfLeads,
@@ -122,7 +123,7 @@ export default function DashboardPage({ businesses }: Props) {
       console.log("Sending API request with payload:", payload);
       
       // Make API call to the scraping service
-      const response = await fetch('https://aramexshipping.app.n8n.cloud/webhook/scrape_google_data', {
+      const response = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/scrape/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,30 +134,49 @@ export default function DashboardPage({ businesses }: Props) {
       if (response.ok) {
         const result = await response.json();
         console.log("Scraping API response:", result);
-        
-        // Check if we received a taskID
-        if (result.taskID) {
-          // Update the job with taskID and set status to ready_for_download
-          await updateScrapingJob(newJob.id, {
+
+        const taskId = result.taskId || result.taskID || result.task_id;
+        const downloadURL = result.downloadURL || result.downloadUrl || result.download_url || result.url;
+
+        if (taskId && createdJob) {
+          await updateScrapingJob(createdJob.id, {
             status: "ready_for_download",
-            task_id: result.taskID
+            task_id: taskId
           });
-          
-          alert(`Scraping job started successfully! Task ID: ${result.taskID}. Click the download button when ready.`);
-        } else {
-          // Fallback: if no taskID, assume it's completed with download URL
-          await updateScrapingJob(newJob.id, {
+          alert(`Scraping job started successfully! Task ID: ${taskId}. Click the download button when ready.`);
+        } else if (downloadURL && createdJob) {
+          await updateScrapingJob(createdJob.id, {
             status: "completed",
-            download_url: result.downloadUrl || result.download_url || "https://example.com/download/result.csv"
+            download_url: downloadURL
           });
-          
           alert(`Successfully started scraping for ${numberOfLeads} ${displayCategory} businesses in ${displayLocation}`);
+        } else {
+          // Unexpected response shape
+          if (createdJob) await updateScrapingJob(createdJob.id, {
+            status: "failed",
+            task_id: null,
+            download_url: null,
+            details: `Unexpected API response without taskId or downloadUrl. Keys: ${Object.keys(result).join(', ')}`
+          });
+          alert("Scraping API did not return a taskId or downloadUrl. Check logs and n8n workflow.");
         }
       } else {
+        if (createdJob) await updateScrapingJob(createdJob.id, {
+          status: "failed",
+          details: `API request failed with status: ${response.status}`
+        });
         throw new Error(`API request failed with status: ${response.status}`);
       }
     } catch (error) {
       console.error("Error calling scraping API:", error);
+      try {
+        if (createdJob) await updateScrapingJob(createdJob.id, {
+          status: "failed",
+          details: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
+      } catch (e) {
+        console.error("Failed to update job status to failed:", e);
+      }
       alert(`Error starting scraping: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
