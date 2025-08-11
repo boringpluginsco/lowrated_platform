@@ -37,12 +37,15 @@ export default function DashboardPage({ businesses }: Props) {
   const categoryOptions = useMemo(() => getCategoryOptions(), []);
 
   // Handle download button click
+  //Updated 
   const handleDownload = async (result: any) => {
     if (result.status === "ready_for_download" && result.task_id) {
       try {
         console.log("Requesting download URL for taskID:", result.task_id);
         
-      const response = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/scrape/get-download', {
+        const rawBase = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '');
+        const apiBase = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
+        const response = await fetch(`${apiBase}/scrape/get-download`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -123,7 +126,9 @@ export default function DashboardPage({ businesses }: Props) {
       console.log("Sending API request with payload:", payload);
       
       // Make API call to the scraping service
-      const response = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/scrape/start', {
+      const rawBase = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '');
+      const apiBase = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
+      const response = await fetch(`${apiBase}/scrape/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
